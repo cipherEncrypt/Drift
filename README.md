@@ -73,18 +73,15 @@ Vercel prints a URL like `https://drift.vercel.app`.
 
 ### Open in Nimiq Pay
 
-Paste the HTTPS URL in Mini Apps:
+**Share this link.** On mobile it jumps into Nimiq Pay automatically:
 
-`https://YOUR_DOMAIN`
+`https://drift-tan-eight.vercel.app`
 
-Or use the Nimiq Pay deeplink (domain only, no `https://`):
+Direct deeplink (tap in Messages or Notes):
 
-`https://nimpay.app/miniapps/open/YOUR_DOMAIN`
+`nimiqpay://miniapp?url=https://drift-tan-eight.vercel.app`
 
-Examples if your site is `https://drift.pages.dev`:
-
-- Mini Apps field: `https://drift.pages.dev`
-- Deeplink: `https://nimpay.app/miniapps/open/drift.pages.dev`
+Or paste `https://drift-tan-eight.vercel.app` in Pay Discover.
 
 Approve the account prompt. You should see your NIM address.
 

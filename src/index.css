@@ -105,6 +105,37 @@ h1 {
   color: #6b7280;
 }
 
+.share-hint {
+  margin-top: 1rem;
+}
+
+.small-hint {
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.text-link {
+  color: #1f2348;
+  word-break: break-all;
+}
+
+.pay-button {
+  display: block;
+  margin-top: 1rem;
+  padding: 0.875rem 1rem;
+  border-radius: 12px;
+  background: #e9b213;
+  color: #1f2348;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+
+.pay-button:active {
+  background: #d4a00f;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     color: #f3f4f6;
@@ -136,5 +167,13 @@ h1 {
 
   .error {
     color: #f87171;
+  }
+
+  .text-link {
+    color: #f9fafb;
+  }
+
+  .pay-button {
+    color: #1f2348;
   }
 }

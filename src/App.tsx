@@ -1,12 +1,29 @@
 import { useEffect, useState } from 'react'
 import { listAccounts } from './lib/nimiq'
+import {
+  appUrl,
+  isMobile,
+  isNimiqPayHost,
+  nimiqPayDeeplink,
+} from './lib/deeplink'
 
 type Status = 'connecting' | 'ready' | 'error'
+
+const OPEN_PAY_KEY = 'drift_open_pay'
 
 export default function App() {
   const [status, setStatus] = useState<Status>('connecting')
   const [address, setAddress] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const deeplink = nimiqPayDeeplink()
+
+  useEffect(() => {
+    if (isNimiqPayHost()) return
+    if (!isMobile()) return
+    if (sessionStorage.getItem(OPEN_PAY_KEY)) return
+
+    sessionStorage.setItem(OPEN_PAY_KEY, '1')
+    window.location.href = deeplink
+  }, [deeplink])
 
   useEffect(() => {
     let cancelled = false
@@ -17,9 +34,9 @@ export default function App() {
         if (cancelled) return
         setAddress(accounts[0] ?? null)
         setStatus('ready')
-      } catch (err) {
+        sessionStorage.removeItem(OPEN_PAY_KEY)
+      } catch {
         if (cancelled) return
-        setError(err instanceof Error ? err.message : 'Failed to connect')
         setStatus('error')
       }
     }
@@ -47,6 +64,10 @@ export default function App() {
           <>
             <p className="label">Your Nimiq address</p>
             <p className="address">{address}</p>
+            <p className="hint share-hint">
+              Share link (opens in Pay):{' '}
+              <a className="text-link" href={deeplink}>{deeplink}</a>
+            </p>
           </>
         )}
 
@@ -56,11 +77,14 @@ export default function App() {
 
         {status === 'error' && (
           <>
-            <p className="label error-label">Not connected</p>
-            <p className="error">{error}</p>
+            <p className="label error-label">Open in Nimiq Pay</p>
             <p className="hint">
-              Open this URL inside Nimiq Pay&apos;s Mini Apps section, not in
-              Chrome.
+              Safari and Chrome cannot run Mini Apps. Tap below to open Drift in
+              Nimiq Pay.
+            </p>
+            <a className="pay-button" href={deeplink}>Open in Nimiq Pay</a>
+            <p className="hint small-hint">
+              Or paste in Pay Discover: {appUrl()}
             </p>
           </>
         )}
