@@ -6,6 +6,7 @@ import {
   nimiqPayDeeplink,
 } from './lib/deeplink'
 import { useNimiq } from './hooks/useNimiq'
+import { useInbox } from './hooks/useInbox'
 import AppBar from './components/AppBar'
 import NavDock from './components/NavDock'
 import Sky from './screens/Sky'
@@ -20,6 +21,7 @@ const OPEN_PAY_KEY = 'drift_open_pay'
 
 export default function App() {
   const { address, loading, error } = useNimiq()
+  const inboxState = useInbox(address ?? '')
   const [tab, setTab] = useState<Tab>('sky')
   const [screen, setScreen] = useState<Screen>('sky')
   const [claimPlaneId, setClaimPlaneId] = useState<string | null>(null)
@@ -47,6 +49,7 @@ export default function App() {
     setTab('inbox')
     setScreen('inbox')
     setClaimPlaneId(null)
+    inboxState.refresh()
   }
 
   function goSky() {
@@ -122,12 +125,24 @@ export default function App() {
         ) : tab === 'send' ? (
           <Compose fromAddress={address} onSent={goSky} />
         ) : (
-          <Inbox address={address} onOpen={openClaim} />
+          <Inbox
+            planes={inboxState.planes}
+            loading={inboxState.loading}
+            error={inboxState.error}
+            refresh={inboxState.refresh}
+            onOpen={openClaim}
+          />
         )}
       </div>
 
       {screen !== 'claim' && (
-        <NavDock tab={tab} onSky={goSky} onSend={goSend} onInbox={goInbox} />
+        <NavDock
+          tab={tab}
+          onSky={goSky}
+          onSend={goSend}
+          onInbox={goInbox}
+          inboxBadge={inboxState.unread}
+        />
       )}
     </main>
   )

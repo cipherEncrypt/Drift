@@ -1,4 +1,4 @@
-import type { Cheer, PlaneRow, PublicPlane, Relay } from './types'
+import type { Cheer, InboxPlane, PlaneRow, PublicPlane, Relay } from './types'
 
 const PLANE_COLS =
   'id, mode, from_address, to_address, amount_luna, tx_hash, status, launched_at, arrives_at, from_lat, from_lng, to_lat, to_lng, created_at'
@@ -40,15 +40,70 @@ export async function getPlaneWithNote(db: D1Database, id: string): Promise<Plan
 }
 
 export async function inboxPlanes(db: D1Database, address: string): Promise<PublicPlane[]> {
+  const enriched = await inboxPlanesEnriched(db, address)
+  return enriched
+}
+
+export async function cheerTotalsForPlanes(
+  db: D1Database,
+  planeIds: string[],
+): Promise<Record<string, string>> {
+  if (planeIds.length === 0) return {}
+
+  const placeholders = planeIds.map(() => '?').join(',')
+  const { results } = await db
+    .prepare(
+      `SELECT plane_id, amount_luna FROM cheers WHERE plane_id IN (${placeholders})`,
+    )
+    .bind(...planeIds)
+    .all()
+
+  const totals: Record<string, number> = {}
+  for (const row of (results ?? []) as { plane_id: string; amount_luna: string }[]) {
+    const n = Number(row.amount_luna)
+    if (!Number.isFinite(n)) continue
+    totals[row.plane_id] = (totals[row.plane_id] ?? 0) + n
+  }
+
+  const out: Record<string, string> = {}
+  for (const [id, sum] of Object.entries(totals)) {
+    out[id] = String(sum)
+  }
+  return out
+}
+
+export async function inboxPlanesEnriched(
+  db: D1Database,
+  address: string,
+): Promise<InboxPlane[]> {
   const norm = normalizeAddress(address)
   const { results } = await db
     .prepare(`SELECT ${PLANE_COLS} FROM planes ORDER BY created_at DESC`)
     .all()
 
   const rows = (results ?? []) as PlaneRow[]
-  return rows
-    .filter((row) => row.to_address && normalizeAddress(row.to_address) === norm)
-    .map(rowToPublic)
+  const filtered = rows.filter(
+    (row) => row.to_address && normalizeAddress(row.to_address) === norm,
+  )
+
+  const ids = filtered.map((row) => row.id)
+  const cheerTotals = await cheerTotalsForPlanes(db, ids)
+
+  return filtered.map((row) => {
+    const publicPlane = rowToPublic(row)
+    const cheerTotalLuna = cheerTotals[row.id] ?? '0'
+    const base = Number(publicPlane.amountLuna)
+    const cheer = Number(cheerTotalLuna)
+    const totalLuna = String(
+      Number.isFinite(base) && Number.isFinite(cheer) ? base + cheer : base,
+    )
+
+    return {
+      ...publicPlane,
+      cheerTotalLuna,
+      totalLuna,
+    }
+  })
 }
 
 export async function skyPlanes(db: D1Database, status: string): Promise<PublicPlane[]> {

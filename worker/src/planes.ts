@@ -5,7 +5,7 @@ import {
   cheersForPlane,
   getPlane,
   getPlaneWithNote,
-  inboxPlanes,
+  inboxPlanesEnriched,
   normalizeAddress,
   relayTimeSavedMs,
   relaysForPlane,
@@ -50,7 +50,7 @@ export async function handleInbox(url: URL, env: Env): Promise<Response> {
   const address = url.searchParams.get('address')
   if (!address) return err('address required', 400)
 
-  const planes = await inboxPlanes(getDb(env), address)
+  const planes = await inboxPlanesEnriched(getDb(env), address)
   return json({ planes })
 }
 

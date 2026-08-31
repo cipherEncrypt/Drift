@@ -75,7 +75,9 @@ Chrome shows "Open in Nimiq Pay." Expected.
 - Claim with signature (only recipient gets note)
 - Wrong address or bad sig returns 403
 
-Not built: cheer, relay, postcard.
+- Inbox: grouped incoming/opened, flight progress, cheer totals, badge
+
+Not built: postcard.
 
 ## Docs
 

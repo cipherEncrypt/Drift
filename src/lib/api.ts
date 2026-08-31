@@ -1,4 +1,4 @@
-import type { Cheer, PublicPlane, Relay } from '../types/plane'
+import type { Cheer, InboxPlane, PublicPlane, Relay } from '../types/plane'
 
 const API_BASE = import.meta.env.DRIFT_API_URL ?? '/api'
 
@@ -67,7 +67,7 @@ export function getSky(status = 'in_flight'): Promise<{ planes: PublicPlane[] }>
   return request(`/planes/sky?status=${encodeURIComponent(status)}`)
 }
 
-export function getInbox(address: string): Promise<{ planes: PublicPlane[] }> {
+export function getInbox(address: string): Promise<{ planes: InboxPlane[] }> {
   const q = encodeURIComponent(address)
   return request(`/inbox?address=${q}`)
 }

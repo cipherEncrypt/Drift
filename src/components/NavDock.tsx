@@ -2,6 +2,7 @@ type Tab = 'sky' | 'send' | 'inbox'
 
 interface Props {
   tab: Tab
+  inboxBadge?: number
   onSky: () => void
   onSend: () => void
   onInbox: () => void
@@ -46,7 +47,13 @@ function IconInbox() {
   )
 }
 
-export default function NavDock({ tab, onSky, onSend, onInbox }: Props) {
+export default function NavDock({
+  tab,
+  inboxBadge = 0,
+  onSky,
+  onSend,
+  onInbox,
+}: Props) {
   return (
     <nav className="nav-dock" aria-label="Main">
       <button
@@ -70,7 +77,14 @@ export default function NavDock({ tab, onSky, onSend, onInbox }: Props) {
         className={tab === 'inbox' ? 'dock-btn active' : 'dock-btn'}
         onClick={onInbox}
       >
-        <IconInbox />
+        <span className="dock-icon-wrap">
+          <IconInbox />
+          {inboxBadge > 0 && (
+            <span className="dock-badge" aria-label={`${inboxBadge} incoming`}>
+              {inboxBadge > 9 ? '9+' : inboxBadge}
+            </span>
+          )}
+        </span>
         <span>Inbox</span>
       </button>
     </nav>

@@ -41,3 +41,8 @@ export interface Relay {
   timeSavedMs: number
   createdAt: string
 }
+
+export interface InboxPlane extends PublicPlane {
+  cheerTotalLuna: string
+  totalLuna: string
+}
