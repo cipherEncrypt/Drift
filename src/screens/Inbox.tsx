@@ -32,19 +32,30 @@ export default function Inbox({ address, onOpen }: Props) {
   }, [load])
 
   return (
-    <section className="card">
+    <section className="card card-elevated screen-card">
       <div className="row-head">
-        <h2 className="screen-title">Inbox</h2>
-        <button type="button" className="link-btn" onClick={load} disabled={loading}>
+        <div>
+          <p className="eyebrow">For you</p>
+          <h2 className="screen-title">Inbox</h2>
+        </div>
+        <button type="button" className="text-btn" onClick={load} disabled={loading}>
           Refresh
         </button>
       </div>
 
-      {loading && <p className="status">Loading…</p>}
+      {loading && (
+        <div className="loader-row">
+          <span className="loader" aria-hidden="true" />
+          <p className="status">Loading…</p>
+        </div>
+      )}
       {error && <p className="error">{error}</p>}
 
       {!loading && !error && planes.length === 0 && (
-        <p className="status">No planes yet.</p>
+        <div className="empty-block">
+          <p className="empty-title">No planes yet</p>
+          <p className="hint">When someone sends you NIM, it lands here.</p>
+        </div>
       )}
 
       <ul className="plane-list">
@@ -55,10 +66,23 @@ export default function Inbox({ address, onOpen }: Props) {
               className="plane-item"
               onClick={() => onOpen(plane.id)}
             >
-              <span className="plane-from">{plane.fromAddress}</span>
-              <span className="plane-meta">
-                {lunaToNim(plane.amountLuna)} NIM · {plane.status}
+              <span className="plane-item-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M4 12L20 4L12 20L10 12L4 12Z"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </span>
+              <span className="plane-item-body">
+                <span className="plane-from">{plane.fromAddress}</span>
+                <span className="plane-meta">
+                  {lunaToNim(plane.amountLuna)} NIM · {plane.status}
+                </span>
+              </span>
+              <span className="plane-item-chevron" aria-hidden="true">›</span>
             </button>
           </li>
         ))}

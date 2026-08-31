@@ -95,17 +95,20 @@ export default function PlaneDetail({
   }
 
   return (
-    <section className="card plane-detail">
+    <section className="card card-elevated plane-detail">
       <div className="row-head">
-        <h2 className="screen-title">Private plane</h2>
-        <button type="button" className="link-btn" onClick={onClose}>
+        <div>
+          <p className="eyebrow">In flight</p>
+          <h2 className="screen-title">Private plane</h2>
+        </div>
+        <button type="button" className="text-btn" onClick={onClose}>
           Close
         </button>
       </div>
 
-      <p className="hint">Sealed. Only the recipient can open the note.</p>
+      <p className="hint sealed-hint">Sealed. Only the recipient can open the note.</p>
 
-      <dl className="meta-list">
+      <dl className="meta-grid">
         <div>
           <dt>From</dt>
           <dd>{shortAddr(plane.fromAddress)}</dd>
@@ -134,7 +137,7 @@ export default function PlaneDetail({
         </div>
         <div>
           <dt>ETA</dt>
-          <dd>{eta}</dd>
+          <dd className="eta-value">{eta}</dd>
         </div>
       </dl>
 

@@ -60,27 +60,31 @@ export default function Claim({ planeId, address, onBack }: Props) {
 
   if (loading) {
     return (
-      <section className="card">
-        <p className="status">Loading…</p>
+      <section className="card card-elevated screen-card">
+        <div className="loader-row">
+          <span className="loader" aria-hidden="true" />
+          <p className="status">Loading…</p>
+        </div>
       </section>
     )
   }
 
   if (!plane) {
     return (
-      <section className="card">
+      <section className="card card-elevated screen-card">
         <p className="error">{error ?? 'Plane not found'}</p>
-        <button type="button" className="link-btn" onClick={onBack}>Back</button>
+        <button type="button" className="text-btn" onClick={onBack}>Back</button>
       </section>
     )
   }
 
   return (
-    <section className="card">
-      <button type="button" className="link-btn back-btn" onClick={onBack}>
-        Back
+    <section className="card card-elevated screen-card">
+      <button type="button" className="text-btn back-btn" onClick={onBack}>
+        ← Back
       </button>
 
+      <p className="eyebrow">Sealed note</p>
       <h2 className="screen-title">Private plane</h2>
       <p className="hint">
         From {plane.fromAddress} · {lunaToNim(plane.amountLuna)} NIM
@@ -97,7 +101,7 @@ export default function Claim({ planeId, address, onBack }: Props) {
           {error && <p className="error">{error}</p>}
           <button
             type="button"
-            className="pay-button"
+            className="btn-primary"
             onClick={onOpen}
             disabled={busy}
           >

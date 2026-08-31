@@ -48,8 +48,9 @@ export default function Compose({ fromAddress, onSent }: Props) {
   }
 
   return (
-    <section className="card">
-      <h2 className="screen-title">Send privately</h2>
+    <section className="card card-elevated screen-card">
+      <p className="eyebrow">Private mail</p>
+      <h2 className="screen-title">Send a plane</h2>
       <p className="hint">NIM goes straight to them. Only they can open the note.</p>
 
       <form className="form" onSubmit={onSubmit}>
@@ -59,7 +60,7 @@ export default function Compose({ fromAddress, onSent }: Props) {
             type="text"
             value={toAddress}
             onChange={(e) => setToAddress(e.target.value)}
-            placeholder="NQ..."
+            placeholder="NQ…"
             required
           />
         </label>
@@ -90,7 +91,7 @@ export default function Compose({ fromAddress, onSent }: Props) {
 
         {error && <p className="error">{error}</p>}
 
-        <button type="submit" className="pay-button" disabled={busy}>
+        <button type="submit" className="btn-primary" disabled={busy}>
           {busy ? 'Sending…' : 'Send plane'}
         </button>
       </form>

@@ -6,6 +6,8 @@ import {
   nimiqPayDeeplink,
 } from './lib/deeplink'
 import { useNimiq } from './hooks/useNimiq'
+import AppBar from './components/AppBar'
+import NavDock from './components/NavDock'
 import Sky from './screens/Sky'
 import Compose from './screens/Compose'
 import Inbox from './screens/Inbox'
@@ -53,20 +55,24 @@ export default function App() {
     setClaimPlaneId(null)
   }
 
+  function goSend() {
+    setTab('send')
+    setScreen('send')
+    setClaimPlaneId(null)
+  }
+
   if (!isNimiqPayHost() && !loading && !address) {
     return (
-      <main className="app">
-        <header className="header">
-          <h1>Drift</h1>
-          <p className="subtitle">Paper planes with NIM</p>
-        </header>
-        <section className="card">
-          <p className="label error-label">Open in Nimiq Pay</p>
+      <main className="app app-gate">
+        <AppBar />
+        <section className="card card-elevated">
+          <p className="eyebrow">Nimiq Pay required</p>
+          <h2 className="gate-title">Open in Nimiq Pay</h2>
           <p className="hint">
             Safari and Chrome cannot run Mini Apps. Tap below to open Drift in
             Nimiq Pay.
           </p>
-          <a className="pay-button" href={deeplink}>Open in Nimiq Pay</a>
+          <a className="btn-primary" href={deeplink}>Open in Nimiq Pay</a>
           <p className="hint small-hint">Or paste in Pay Discover: {appUrl()}</p>
         </section>
       </main>
@@ -75,13 +81,13 @@ export default function App() {
 
   if (loading) {
     return (
-      <main className="app">
-        <header className="header">
-          <h1>Drift</h1>
-          <p className="subtitle">Paper planes with NIM</p>
-        </header>
-        <section className="card">
-          <p className="status">Connecting…</p>
+      <main className="app app-gate">
+        <AppBar />
+        <section className="card card-elevated">
+          <div className="loader-row">
+            <span className="loader" aria-hidden="true" />
+            <p className="status">Connecting wallet…</p>
+          </div>
         </section>
       </main>
     )
@@ -89,12 +95,9 @@ export default function App() {
 
   if (!address) {
     return (
-      <main className="app">
-        <header className="header">
-          <h1>Drift</h1>
-          <p className="subtitle">Paper planes with NIM</p>
-        </header>
-        <section className="card">
+      <main className="app app-gate">
+        <AppBar />
+        <section className="card card-elevated">
           <p className="error">{error ?? 'No wallet connected'}</p>
         </section>
       </main>
@@ -105,52 +108,26 @@ export default function App() {
 
   return (
     <main className={`app${isSky ? ' app-sky' : ''}`}>
-      <header className="header">
-        <h1>Drift</h1>
-        <p className="subtitle">Paper planes with NIM</p>
-      </header>
+      <AppBar address={address} compact={isSky} />
 
-      {screen === 'claim' && claimPlaneId ? (
-        <Claim
-          planeId={claimPlaneId}
-          address={address}
-          onBack={goInbox}
-        />
-      ) : tab === 'sky' ? (
-        <Sky walletAddress={address} />
-      ) : tab === 'send' ? (
-        <Compose fromAddress={address} onSent={goSky} />
-      ) : (
-        <Inbox address={address} onOpen={openClaim} />
-      )}
+      <div className="app-body">
+        {screen === 'claim' && claimPlaneId ? (
+          <Claim
+            planeId={claimPlaneId}
+            address={address}
+            onBack={goInbox}
+          />
+        ) : tab === 'sky' ? (
+          <Sky walletAddress={address} />
+        ) : tab === 'send' ? (
+          <Compose fromAddress={address} onSent={goSky} />
+        ) : (
+          <Inbox address={address} onOpen={openClaim} />
+        )}
+      </div>
 
       {screen !== 'claim' && (
-        <nav className="nav nav-three">
-          <button
-            type="button"
-            className={tab === 'sky' ? 'nav-btn active' : 'nav-btn'}
-            onClick={goSky}
-          >
-            Sky
-          </button>
-          <button
-            type="button"
-            className={tab === 'send' ? 'nav-btn active' : 'nav-btn'}
-            onClick={() => {
-              setTab('send')
-              setScreen('send')
-            }}
-          >
-            Send
-          </button>
-          <button
-            type="button"
-            className={tab === 'inbox' ? 'nav-btn active' : 'nav-btn'}
-            onClick={goInbox}
-          >
-            Inbox
-          </button>
-        </nav>
+        <NavDock tab={tab} onSky={goSky} onSend={goSend} onInbox={goInbox} />
       )}
     </main>
   )

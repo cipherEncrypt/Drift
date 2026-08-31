@@ -62,6 +62,7 @@ export default function Sky({ walletAddress }: Props) {
   }
 
   const selectedEta = selected ? etaLabel(selected.arrivesAt, now) : ''
+  const showEmpty = !loading && !error && planes.length === 0
 
   function handleSelect(plane: PublicPlane) {
     setSelected(plane)
@@ -80,42 +81,83 @@ export default function Sky({ walletAddress }: Props) {
 
   return (
     <section className="sky-screen">
-      <div className="row-head">
-        <h2 className="screen-title">Sky</h2>
-        <button type="button" className="link-btn" onClick={refresh} disabled={loading}>
-          Refresh
-        </button>
+      <div className="sky-map-stage">
+        <div className="sky-map-wrap">
+          <SkyMap
+            planes={onMap}
+            selectedId={selected?.id ?? null}
+            onSelect={handleSelect}
+          />
+
+          {showEmpty && (
+            <div className="sky-empty" aria-live="polite">
+              <div className="sky-empty-icon" aria-hidden="true">
+                <svg viewBox="0 0 64 64" fill="none">
+                  <path
+                    d="M8 36L52 16L32 56L28 36L8 36Z"
+                    fill="rgba(26,39,68,0.08)"
+                  />
+                  <path
+                    d="M8 36L52 16L28 36M28 36L32 56L52 16"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              <p className="sky-empty-title">Quiet sky</p>
+              <p className="sky-empty-hint">Send a plane to fill the map</p>
+            </div>
+          )}
+
+          <div className="sky-map-toolbar">
+            {planes.length > 0 && (
+              <span className="sky-badge">
+                {planes.length} in flight
+              </span>
+            )}
+            <button
+              type="button"
+              className="sky-refresh"
+              onClick={refresh}
+              disabled={loading}
+              aria-label="Refresh sky"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
 
-      {loading && <p className="status">Loading sky…</p>}
-      {error && <p className="error">{error}</p>}
-
-      {!loading && !error && planes.length === 0 && (
-        <p className="status">No planes in flight. Send one to fill the sky.</p>
+      {error && <p className="error sky-error">{error}</p>}
+      {loading && planes.length === 0 && (
+        <p className="status sky-loading">Scanning sky…</p>
       )}
-
-      <div className="sky-map-wrap">
-        <SkyMap
-          planes={onMap}
-          selectedId={selected?.id ?? null}
-          onSelect={handleSelect}
-        />
-      </div>
 
       {selected && (
-        <PlaneDetail
-          plane={selected}
-          cheers={cheers}
-          relays={relays}
-          eta={selectedEta}
-          walletAddress={walletAddress}
-          onClose={() => setSelected(null)}
-          onUpdated={handleUpdated}
-        />
-      )}
-
-      {detailLoading && selected && (
-        <p className="status small-hint">Loading details…</p>
+        <div className="sky-detail-sheet">
+          <PlaneDetail
+            plane={selected}
+            cheers={cheers}
+            relays={relays}
+            eta={selectedEta}
+            walletAddress={walletAddress}
+            onClose={() => setSelected(null)}
+            onUpdated={handleUpdated}
+          />
+          {detailLoading && (
+            <p className="status small-hint sheet-loading">Loading details…</p>
+          )}
+        </div>
       )}
     </section>
   )

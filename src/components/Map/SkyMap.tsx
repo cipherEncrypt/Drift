@@ -14,6 +14,16 @@ interface Props {
   onSelect: (plane: PublicPlane) => void
 }
 
+const PLANE_MARKER_HTML = (selected: boolean) =>
+  `<div class="plane-marker${selected ? ' selected' : ''}" aria-hidden="true">
+    <span class="plane-marker-ring"></span>
+    <span class="plane-marker-body">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M3 12L21 4L12 20L10 12L3 12Z" fill="currentColor"/>
+      </svg>
+    </span>
+  </div>`
+
 export default function SkyMap({ planes, selectedId, onSelect }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -29,9 +39,9 @@ export default function SkyMap({ planes, selectedId, onSelect }: Props) {
       attributionControl: true,
     }).setView([20, 0], 2)
 
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 18,
-      attribution: '&copy; OpenStreetMap',
+    L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap &copy; CARTO',
     }).addTo(map)
 
     mapRef.current = map
@@ -59,30 +69,31 @@ export default function SkyMap({ planes, selectedId, onSelect }: Props) {
 
     for (const { plane, position } of planes) {
       const latLng: L.LatLngExpression = [position[0], position[1]]
+      const isSelected = plane.id === selectedId
       let marker = markers.get(plane.id)
 
       if (!marker) {
         const icon = L.divIcon({
           className: 'plane-marker-icon',
-          html: `<div class="plane-dot${plane.id === selectedId ? ' selected' : ''}"></div>`,
-          iconSize: [18, 18],
-          iconAnchor: [9, 9],
+          html: PLANE_MARKER_HTML(isSelected),
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
         })
         marker = L.marker(latLng, { icon }).addTo(map)
         marker.on('click', () => onSelectRef.current(plane))
         markers.set(plane.id, marker)
       } else {
         marker.setLatLng(latLng)
-        const el = marker.getElement()?.querySelector('.plane-dot')
+        const el = marker.getElement()?.querySelector('.plane-marker')
         if (el) {
-          el.classList.toggle('selected', plane.id === selectedId)
+          el.classList.toggle('selected', isSelected)
         }
       }
     }
 
     if (planes.length > 0) {
       const bounds = L.latLngBounds(planes.map((p) => p.position as L.LatLngTuple))
-      map.fitBounds(bounds.pad(0.35), { maxZoom: 6, animate: false })
+      map.fitBounds(bounds.pad(0.4), { maxZoom: 6, animate: true })
     }
   }, [planes, selectedId])
 
