@@ -42,15 +42,13 @@ export async function getPlaneWithNote(db: D1Database, id: string): Promise<Plan
 export async function inboxPlanes(db: D1Database, address: string): Promise<PublicPlane[]> {
   const norm = normalizeAddress(address)
   const { results } = await db
-    .prepare(
-      `SELECT ${PLANE_COLS} FROM planes
-       WHERE UPPER(REPLACE(to_address, ' ', '')) = ?
-       ORDER BY created_at DESC`,
-    )
-    .bind(norm)
-    .all<PlaneRow>()
+    .prepare(`SELECT ${PLANE_COLS} FROM planes ORDER BY created_at DESC`)
+    .all()
 
-  return (results ?? []).map(rowToPublic)
+  const rows = (results ?? []) as PlaneRow[]
+  return rows
+    .filter((row) => row.to_address && normalizeAddress(row.to_address) === norm)
+    .map(rowToPublic)
 }
 
 export function normalizeAddress(addr: string): string {
