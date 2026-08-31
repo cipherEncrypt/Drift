@@ -1,3 +1,9 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://drift-api.driftplanes.workers.dev/:path*"
+    },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

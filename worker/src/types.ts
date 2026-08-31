@@ -40,7 +40,3 @@ export interface PublicPlane {
   toLatLng: [number, number] | null
   createdAt: string
 }
-
-export interface Env {
-  DB: D1Database
-}

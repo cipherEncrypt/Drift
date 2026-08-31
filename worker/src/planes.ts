@@ -1,3 +1,5 @@
+import type { Env } from './env'
+import { getDb } from './env'
 import {
   FLIGHT_MS,
   getPlane,
@@ -6,12 +8,6 @@ import {
   normalizeAddress,
   rowToPublic,
 } from './db'
-import {
-  addressFromPublicKey,
-  addressesMatch,
-  verifyClaimSig,
-} from './nimiqVerify'
-import type { Env } from './types'
 
 function json(data: unknown, status = 200): Response {
   return Response.json(data, { status })
@@ -42,12 +38,12 @@ export async function handleInbox(url: URL, env: Env): Promise<Response> {
   const address = url.searchParams.get('address')
   if (!address) return err('address required', 400)
 
-  const planes = await inboxPlanes(env.DB, address)
+  const planes = await inboxPlanes(getDb(env), address)
   return json({ planes })
 }
 
 export async function handleGetPlane(id: string, env: Env): Promise<Response> {
-  const row = await getPlane(env.DB, id)
+  const row = await getPlane(getDb(env), id)
   if (!row) return err('not found', 404)
 
   return json({
@@ -69,7 +65,9 @@ export async function handleCreatePlane(
   }
   if (!body.note?.trim()) return err('note required', 400)
 
-  const existing = await env.DB.prepare('SELECT id FROM planes WHERE tx_hash = ?')
+  const db = getDb(env)
+
+  const existing = await db.prepare('SELECT id FROM planes WHERE tx_hash = ?')
     .bind(body.txHash)
     .first()
 
@@ -86,7 +84,7 @@ export async function handleCreatePlane(
   const toLat = body.toLatLng?.[0] ?? 0
   const toLng = body.toLatLng?.[1] ?? 0
 
-  await env.DB.prepare(
+  await db.prepare(
     `INSERT INTO planes (
       id, mode, from_address, to_address, amount_luna, note, tx_hash, status,
       launched_at, arrives_at, from_lat, from_lng, to_lat, to_lng, created_at
@@ -95,8 +93,8 @@ export async function handleCreatePlane(
     .bind(
       id,
       'private',
-      body.fromAddress,
-      body.toAddress,
+      body.fromAddress.trim(),
+      body.toAddress.trim(),
       body.amountLuna,
       body.note.trim(),
       body.txHash,
@@ -111,7 +109,7 @@ export async function handleCreatePlane(
     )
     .run()
 
-  const row = await getPlane(env.DB, id)
+  const row = await getPlane(db, id)
   if (!row) return err('create failed', 500)
 
   return json({ plane: rowToPublic(row) }, 201)
@@ -128,21 +126,26 @@ export async function handleClaim(
     return err('claimantAddress, signature, and publicKey required', 400)
   }
 
-  const plane = await getPlaneWithNote(env.DB, planeId)
+  const db = getDb(env)
+  const plane = await getPlaneWithNote(db, planeId)
   if (!plane) return err('not found', 404)
 
   if (plane.mode !== 'private') return err('not a private plane', 400)
+
+  const { addressFromPublicKey, addressesMatch, verifyClaimSig } = await import(
+    './nimiqVerify'
+  )
 
   const sigOk = verifyClaimSig(planeId, body.publicKey, body.signature)
   const derivedAddr = addressFromPublicKey(body.publicKey)
 
   if (!sigOk || !addressesMatch(derivedAddr, body.claimantAddress)) {
-    await recordClaim(env.DB, planeId, body, 'rejected')
+    await recordClaim(db, planeId, body, 'rejected')
     return err('bad signature', 403)
   }
 
   if (!plane.to_address || !addressesMatch(body.claimantAddress, plane.to_address)) {
-    await recordClaim(env.DB, planeId, body, 'rejected')
+    await recordClaim(db, planeId, body, 'rejected')
     return err('wrong address', 403)
   }
 
@@ -154,11 +157,11 @@ export async function handleClaim(
     return err('plane not openable', 400)
   }
 
-  await env.DB.prepare('UPDATE planes SET status = ? WHERE id = ?')
+  await db.prepare('UPDATE planes SET status = ? WHERE id = ?')
     .bind('opened', planeId)
     .run()
 
-  await recordClaim(env.DB, planeId, body, 'opened')
+  await recordClaim(db, planeId, body, 'opened')
 
   return json({ note: plane.note })
 }

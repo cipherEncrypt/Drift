@@ -3,18 +3,34 @@ import type { PublicPlane } from '../types/plane'
 const API_BASE = import.meta.env.DRIFT_API_URL ?? '/api'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  })
+  const url = `${API_BASE}${path}`
 
-  const data = await res.json().catch(() => ({}))
+  let res: Response
+  try {
+    res = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+    })
+  } catch {
+    throw new Error('cannot reach API. Is the worker deployed?')
+  }
+
+  const text = await res.text()
+  let data: { error?: string } = {}
+
+  if (text) {
+    try {
+      data = JSON.parse(text) as { error?: string }
+    } catch {
+      throw new Error(`API returned invalid response (${res.status})`)
+    }
+  }
 
   if (!res.ok) {
-    const msg = typeof data.error === 'string' ? data.error : `request failed (${res.status})`
+    const msg = data.error ?? `request failed (${res.status})`
     throw new Error(msg)
   }
 

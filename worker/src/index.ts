@@ -4,7 +4,7 @@ import {
   handleGetPlane,
   handleInbox,
 } from './planes'
-import type { Env } from './types'
+import type { Env } from './env'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -24,6 +24,11 @@ function withCors(response: Response): Response {
   })
 }
 
+function serverError(err: unknown): Response {
+  const message = err instanceof Error ? err.message : 'server error'
+  return withCors(Response.json({ error: message }, { status: 500 }))
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === 'OPTIONS') {
@@ -33,28 +38,32 @@ export default {
     const url = new URL(request.url)
     const path = url.pathname
 
-    if (path === '/health') {
-      return withCors(Response.json({ ok: true, service: 'drift-api' }))
-    }
+    try {
+      if (path === '/health') {
+        return withCors(Response.json({ ok: true, service: 'drift-api' }))
+      }
 
-    if (path === '/inbox' && request.method === 'GET') {
-      return withCors(await handleInbox(url, env))
-    }
+      if (path === '/inbox' && request.method === 'GET') {
+        return withCors(await handleInbox(url, env))
+      }
 
-    if (path === '/planes' && request.method === 'POST') {
-      return withCors(await handleCreatePlane(request, env))
-    }
+      if (path === '/planes' && request.method === 'POST') {
+        return withCors(await handleCreatePlane(request, env))
+      }
 
-    const planeMatch = path.match(/^\/planes\/([^/]+)$/)
-    if (planeMatch && request.method === 'GET') {
-      return withCors(await handleGetPlane(planeMatch[1], env))
-    }
+      const planeMatch = path.match(/^\/planes\/([^/]+)$/)
+      if (planeMatch && request.method === 'GET') {
+        return withCors(await handleGetPlane(planeMatch[1], env))
+      }
 
-    const claimMatch = path.match(/^\/planes\/([^/]+)\/claim$/)
-    if (claimMatch && request.method === 'POST') {
-      return withCors(await handleClaim(claimMatch[1], request, env))
-    }
+      const claimMatch = path.match(/^\/planes\/([^/]+)\/claim$/)
+      if (claimMatch && request.method === 'POST') {
+        return withCors(await handleClaim(claimMatch[1], request, env))
+      }
 
-    return withCors(new Response('not found', { status: 404 }))
+      return withCors(new Response('not found', { status: 404 }))
+    } catch (err) {
+      return serverError(err)
+    }
   },
 }

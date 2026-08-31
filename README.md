@@ -79,6 +79,3 @@ Not built: map, cheer, relay, postcard.
 - `docs/BRIEF.md` product rules
 - `docs/ARCHITECTURE.md` system design
 - `docs/NIMIQ_API.md` Nimiq SDK signatures
-
-
- https://driftplanes.workers.dev
