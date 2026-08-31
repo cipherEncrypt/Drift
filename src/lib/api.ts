@@ -1,4 +1,4 @@
-import type { PublicPlane } from '../types/plane'
+import type { Cheer, PublicPlane, Relay } from '../types/plane'
 
 const API_BASE = import.meta.env.DRIFT_API_URL ?? '/api'
 
@@ -43,6 +43,8 @@ export interface CreatePlaneInput {
   amountLuna: string
   note: string
   txHash: string
+  fromLatLng: [number, number]
+  toLatLng: [number, number]
 }
 
 export function createPlane(input: CreatePlaneInput): Promise<{ plane: PublicPlane }> {
@@ -55,10 +57,14 @@ export function createPlane(input: CreatePlaneInput): Promise<{ plane: PublicPla
       amountLuna: input.amountLuna,
       note: input.note,
       txHash: input.txHash,
-      fromLatLng: [0, 0],
-      toLatLng: [0, 0],
+      fromLatLng: input.fromLatLng,
+      toLatLng: input.toLatLng,
     }),
   })
+}
+
+export function getSky(status = 'in_flight'): Promise<{ planes: PublicPlane[] }> {
+  return request(`/planes/sky?status=${encodeURIComponent(status)}`)
 }
 
 export function getInbox(address: string): Promise<{ planes: PublicPlane[] }> {
@@ -66,8 +72,38 @@ export function getInbox(address: string): Promise<{ planes: PublicPlane[] }> {
   return request(`/inbox?address=${q}`)
 }
 
-export function getPlane(id: string): Promise<{ plane: PublicPlane }> {
+export function getPlane(id: string): Promise<{
+  plane: PublicPlane
+  cheers: Cheer[]
+  relays: Relay[]
+}> {
   return request(`/planes/${id}`)
+}
+
+export interface CheerRelayInput {
+  fromAddress: string
+  amountLuna: string
+  txHash: string
+}
+
+export function cheerPlane(
+  id: string,
+  input: CheerRelayInput,
+): Promise<{ cheer: Cheer }> {
+  return request(`/planes/${id}/cheer`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function relayPlane(
+  id: string,
+  input: CheerRelayInput,
+): Promise<{ relay: Relay; newArrivesAt: string }> {
+  return request(`/planes/${id}/relay`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
 }
 
 export interface ClaimInput {

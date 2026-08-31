@@ -40,3 +40,22 @@ export interface PublicPlane {
   toLatLng: [number, number] | null
   createdAt: string
 }
+
+export interface Cheer {
+  id: string
+  planeId: string
+  fromAddress: string
+  amountLuna: string
+  txHash: string
+  createdAt: string
+}
+
+export interface Relay {
+  id: string
+  planeId: string
+  fromAddress: string
+  amountLuna: string
+  txHash: string
+  timeSavedMs: number
+  createdAt: string
+}

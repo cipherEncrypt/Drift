@@ -1,8 +1,11 @@
 import {
   handleClaim,
+  handleCheer,
   handleCreatePlane,
   handleGetPlane,
   handleInbox,
+  handleRelay,
+  handleSky,
 } from './planes'
 import type { Env } from './env'
 
@@ -47,6 +50,10 @@ export default {
         return withCors(await handleInbox(url, env))
       }
 
+      if (path === '/planes/sky' && request.method === 'GET') {
+        return withCors(await handleSky(url, env))
+      }
+
       if (path === '/planes' && request.method === 'POST') {
         return withCors(await handleCreatePlane(request, env))
       }
@@ -54,6 +61,16 @@ export default {
       const planeMatch = path.match(/^\/planes\/([^/]+)$/)
       if (planeMatch && request.method === 'GET') {
         return withCors(await handleGetPlane(planeMatch[1], env))
+      }
+
+      const cheerMatch = path.match(/^\/planes\/([^/]+)\/cheer$/)
+      if (cheerMatch && request.method === 'POST') {
+        return withCors(await handleCheer(cheerMatch[1], request, env))
+      }
+
+      const relayMatch = path.match(/^\/planes\/([^/]+)\/relay$/)
+      if (relayMatch && request.method === 'POST') {
+        return withCors(await handleRelay(relayMatch[1], request, env))
       }
 
       const claimMatch = path.match(/^\/planes\/([^/]+)\/claim$/)

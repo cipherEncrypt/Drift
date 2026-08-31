@@ -1,4 +1,4 @@
-import type { PlaneRow, PublicPlane } from './types'
+import type { Cheer, PlaneRow, PublicPlane, Relay } from './types'
 
 const PLANE_COLS =
   'id, mode, from_address, to_address, amount_luna, tx_hash, status, launched_at, arrives_at, from_lat, from_lng, to_lat, to_lng, created_at'
@@ -51,8 +51,123 @@ export async function inboxPlanes(db: D1Database, address: string): Promise<Publ
     .map(rowToPublic)
 }
 
+export async function skyPlanes(db: D1Database, status: string): Promise<PublicPlane[]> {
+  const { results } = await db
+    .prepare(`SELECT ${PLANE_COLS} FROM planes ORDER BY arrives_at ASC`)
+    .all()
+
+  const rows = (results ?? []) as PlaneRow[]
+  return rows.filter((row) => row.status === status).map(rowToPublic)
+}
+
 export function normalizeAddress(addr: string): string {
   return addr.replace(/\s/g, '').toUpperCase()
 }
 
 export const FLIGHT_MS = 60 * 60 * 1000
+
+/** 0.1 NIM relay fee saves 10 minutes of flight time */
+export const LUNA_PER_TEN_MIN = 10_000
+export const TEN_MIN_MS = 10 * 60 * 1000
+export const MIN_ARRIVAL_MS = 60 * 1000
+
+export function relayTimeSavedMs(amountLuna: string): number {
+  const luna = Number(amountLuna)
+  if (!Number.isFinite(luna) || luna <= 0) return 0
+  const blocks = Math.floor(luna / LUNA_PER_TEN_MIN)
+  return blocks * TEN_MIN_MS
+}
+
+export async function txHashUsed(db: D1Database, txHash: string): Promise<boolean> {
+  const inPlanes = await db
+    .prepare('SELECT id FROM planes WHERE tx_hash = ?')
+    .bind(txHash)
+    .first()
+  if (inPlanes) return true
+
+  const inCheers = await db
+    .prepare('SELECT id FROM cheers WHERE tx_hash = ?')
+    .bind(txHash)
+    .first()
+  if (inCheers) return true
+
+  const inRelays = await db
+    .prepare('SELECT id FROM relays WHERE tx_hash = ?')
+    .bind(txHash)
+    .first()
+  if (inRelays) return true
+
+  return false
+}
+
+interface CheerRow {
+  id: string
+  plane_id: string
+  from_address: string
+  amount_luna: string
+  tx_hash: string
+  created_at: string
+}
+
+interface RelayRow {
+  id: string
+  plane_id: string
+  from_address: string
+  amount_luna: string
+  tx_hash: string
+  time_saved_ms: number
+  created_at: string
+}
+
+export function rowToCheer(row: CheerRow): Cheer {
+  return {
+    id: row.id,
+    planeId: row.plane_id,
+    fromAddress: row.from_address,
+    amountLuna: row.amount_luna,
+    txHash: row.tx_hash,
+    createdAt: row.created_at,
+  }
+}
+
+export function rowToRelay(row: RelayRow): Relay {
+  return {
+    id: row.id,
+    planeId: row.plane_id,
+    fromAddress: row.from_address,
+    amountLuna: row.amount_luna,
+    txHash: row.tx_hash,
+    timeSavedMs: row.time_saved_ms,
+    createdAt: row.created_at,
+  }
+}
+
+export async function cheersForPlane(db: D1Database, planeId: string): Promise<Cheer[]> {
+  const { results } = await db
+    .prepare(
+      'SELECT id, plane_id, from_address, amount_luna, tx_hash, created_at FROM cheers WHERE plane_id = ? ORDER BY created_at ASC',
+    )
+    .bind(planeId)
+    .all()
+
+  return ((results ?? []) as CheerRow[]).map(rowToCheer)
+}
+
+export async function relaysForPlane(db: D1Database, planeId: string): Promise<Relay[]> {
+  const { results } = await db
+    .prepare(
+      'SELECT id, plane_id, from_address, amount_luna, tx_hash, time_saved_ms, created_at FROM relays WHERE plane_id = ? ORDER BY created_at ASC',
+    )
+    .bind(planeId)
+    .all()
+
+  return ((results ?? []) as RelayRow[]).map(rowToRelay)
+}
+
+export function shortenArrival(arrivesAt: string, timeSavedMs: number): string {
+  const now = Date.now()
+  const current = new Date(arrivesAt).getTime()
+  const target = current - timeSavedMs
+  const clamped = Math.max(now + MIN_ARRIVAL_MS, target)
+  return new Date(clamped).toISOString()
+}

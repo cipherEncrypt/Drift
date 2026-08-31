@@ -2,7 +2,7 @@
 
 Drift is a Mini App inside Nimiq Pay. Paper planes with NIM.
 
-Open in Pay and you should see Send and Inbox. Phase 1: private send + claim.
+Open in Pay and you should see Sky, Send, and Inbox.
 
 ## Setup
 
@@ -67,12 +67,15 @@ Chrome shows "Open in Nimiq Pay." Expected.
 
 ## What works now
 
+- Sky map with in-flight private planes (metadata only, no note)
+- Cheer: add NIM to a private plane (recipient gets it, note stays sealed)
+- Relay: pay a fee to shorten flight ETA (0.1 NIM = 10 min saved)
 - Private send (real NIM on-chain)
 - Sealed note stored server-side
 - Claim with signature (only recipient gets note)
 - Wrong address or bad sig returns 403
 
-Not built: map, cheer, relay, postcard.
+Not built: cheer, relay, postcard.
 
 ## Docs
 

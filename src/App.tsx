@@ -6,19 +6,20 @@ import {
   nimiqPayDeeplink,
 } from './lib/deeplink'
 import { useNimiq } from './hooks/useNimiq'
+import Sky from './screens/Sky'
 import Compose from './screens/Compose'
 import Inbox from './screens/Inbox'
 import Claim from './screens/Claim'
 
-type Tab = 'send' | 'inbox'
+type Tab = 'sky' | 'send' | 'inbox'
 type Screen = Tab | 'claim'
 
 const OPEN_PAY_KEY = 'drift_open_pay'
 
 export default function App() {
   const { address, loading, error } = useNimiq()
-  const [tab, setTab] = useState<Tab>('send')
-  const [screen, setScreen] = useState<Screen>('send')
+  const [tab, setTab] = useState<Tab>('sky')
+  const [screen, setScreen] = useState<Screen>('sky')
   const [claimPlaneId, setClaimPlaneId] = useState<string | null>(null)
   const deeplink = nimiqPayDeeplink()
 
@@ -43,6 +44,12 @@ export default function App() {
   function goInbox() {
     setTab('inbox')
     setScreen('inbox')
+    setClaimPlaneId(null)
+  }
+
+  function goSky() {
+    setTab('sky')
+    setScreen('sky')
     setClaimPlaneId(null)
   }
 
@@ -94,8 +101,10 @@ export default function App() {
     )
   }
 
+  const isSky = tab === 'sky' && screen !== 'claim'
+
   return (
-    <main className="app">
+    <main className={`app${isSky ? ' app-sky' : ''}`}>
       <header className="header">
         <h1>Drift</h1>
         <p className="subtitle">Paper planes with NIM</p>
@@ -107,14 +116,23 @@ export default function App() {
           address={address}
           onBack={goInbox}
         />
+      ) : tab === 'sky' ? (
+        <Sky walletAddress={address} />
       ) : tab === 'send' ? (
-        <Compose fromAddress={address} onSent={goInbox} />
+        <Compose fromAddress={address} onSent={goSky} />
       ) : (
         <Inbox address={address} onOpen={openClaim} />
       )}
 
       {screen !== 'claim' && (
-        <nav className="nav">
+        <nav className="nav nav-three">
+          <button
+            type="button"
+            className={tab === 'sky' ? 'nav-btn active' : 'nav-btn'}
+            onClick={goSky}
+          >
+            Sky
+          </button>
           <button
             type="button"
             className={tab === 'send' ? 'nav-btn active' : 'nav-btn'}

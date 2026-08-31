@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { createPlane } from '../lib/api'
+import { getFromLatLng, toLatLngFromAddress } from '../lib/geo'
 import { nimToLuna } from '../lib/luna'
 import { sendNim } from '../lib/nimiq'
 
@@ -22,13 +23,18 @@ export default function Compose({ fromAddress, onSent }: Props) {
 
     try {
       const amountLuna = nimToLuna(amount)
-      const txHash = await sendNim(toAddress.trim(), Number(amountLuna))
+      const trimmedTo = toAddress.trim()
+      const fromLatLng = await getFromLatLng()
+      const toLatLng = toLatLngFromAddress(trimmedTo)
+      const txHash = await sendNim(trimmedTo, Number(amountLuna))
       await createPlane({
         fromAddress,
-        toAddress: toAddress.trim(),
+        toAddress: trimmedTo,
         amountLuna,
         note: note.trim(),
         txHash,
+        fromLatLng,
+        toLatLng,
       })
       setToAddress('')
       setAmount('')
