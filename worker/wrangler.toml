@@ -1,0 +1,11 @@
+name = "drift-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[dev]
+port = 8787
+
+[[d1_databases]]
+binding = "DB"
+database_name = "drift-db"
+database_id = "c1ad463e-814e-4dad-9466-d61da8d25700"
