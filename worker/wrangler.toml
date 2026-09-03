@@ -8,11 +8,11 @@ port = 8787
 
 [vars]
 # Public treasury address throwers send NIM to (set your wallet)
-POSTCARD_TREASURY_ADDRESS = ""
+POSTCARD_TREASURY_ADDRESS = "NQ620NRR9RBP3VMSDPAYHBEMB1VX3UDX9TXF"
 
-# Nimiq JSON-RPC for postcard payouts (your node or provider)
-NIMIQ_RPC_URL = ""
-NIMIQ_NETWORK_ID = "42"
+# Nimiq JSON-RPC for postcard payouts (mainnet; Nimiq Pay uses real NIM)
+NIMIQ_RPC_URL = "https://rpc.nimiqwatch.com"
+NIMIQ_NETWORK_ID = "24"
 
 [[d1_databases]]
 binding = "DB"

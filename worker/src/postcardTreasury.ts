@@ -5,7 +5,7 @@ import init, {
   TransactionBuilder,
 } from '@nimiq/core/web'
 import type { Env } from './env'
-import { nimiqRpc } from './nimiqRpc'
+import { nimiqBlockHeight, nimiqRpc } from './nimiqRpc'
 
 let wasmReady: Promise<void> | null = null
 
@@ -44,8 +44,8 @@ export async function sendTreasuryPayout(
   const sender = keyPair.toAddress()
   const recipient = Address.fromUserFriendlyAddress(recipientAddress.trim())
 
-  const height = await nimiqRpc(rpcUrl, 'blockNumber', []) as number
-  const networkId = Number(env.NIMIQ_NETWORK_ID ?? '42')
+  const height = await nimiqBlockHeight(rpcUrl)
+  const networkId = Number(env.NIMIQ_NETWORK_ID ?? '24')
   const value = BigInt(amountLuna)
   const fee = BigInt(0)
 
