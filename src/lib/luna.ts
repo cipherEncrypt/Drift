@@ -20,3 +20,12 @@ export function lunaToNim(luna: string): string {
   if (!Number.isFinite(n)) return '0'
   return (n / LUNA_PER_NIM).toFixed(5).replace(/\.?0+$/, '')
 }
+
+/** Safe parse for sendBasicTransaction (luna integer). */
+export function lunaToNumber(luna: string): number {
+  const trimmed = luna.trim()
+  if (!/^\d+$/.test(trimmed)) throw new Error('invalid amount')
+  const n = Number(trimmed)
+  if (!Number.isFinite(n) || n <= 0) throw new Error('invalid amount')
+  return n
+}

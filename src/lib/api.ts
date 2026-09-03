@@ -30,7 +30,15 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
 
   if (!res.ok) {
-    const msg = data.error ?? `request failed (${res.status})`
+    const fallback =
+      res.status === 403
+        ? 'not allowed'
+        : res.status === 409
+          ? 'already done'
+          : res.status === 503
+            ? 'service unavailable'
+            : `request failed (${res.status})`
+    const msg = data.error ?? fallback
     throw new Error(msg)
   }
 
@@ -63,6 +71,36 @@ export function createPlane(input: CreatePlaneInput): Promise<{ plane: PublicPla
   })
 }
 
+export interface CreatePostcardInput {
+  fromAddress: string
+  amountLuna: string
+  txHash: string
+  fromLatLng: [number, number]
+}
+
+export function createPostcard(input: CreatePostcardInput): Promise<{ plane: PublicPlane }> {
+  return request('/planes', {
+    method: 'POST',
+    body: JSON.stringify({
+      mode: 'postcard',
+      fromAddress: input.fromAddress,
+      amountLuna: input.amountLuna,
+      txHash: input.txHash,
+      fromLatLng: input.fromLatLng,
+    }),
+  })
+}
+
+export interface DriftConfig {
+  postcardTreasuryAddress: string | null
+  postcardThrowEnabled: boolean
+  postcardCatchEnabled: boolean
+}
+
+export function getConfig(): Promise<DriftConfig> {
+  return request('/config')
+}
+
 export function getSky(status = 'in_flight'): Promise<{ planes: PublicPlane[] }> {
   return request(`/planes/sky?status=${encodeURIComponent(status)}`)
 }
@@ -70,6 +108,11 @@ export function getSky(status = 'in_flight'): Promise<{ planes: PublicPlane[] }>
 export function getInbox(address: string): Promise<{ planes: InboxPlane[] }> {
   const q = encodeURIComponent(address)
   return request(`/inbox?address=${q}`)
+}
+
+export function getSent(address: string): Promise<{ planes: PublicPlane[] }> {
+  const q = encodeURIComponent(address)
+  return request(`/sent?address=${q}`)
 }
 
 export function getPlane(id: string): Promise<{
@@ -84,6 +127,7 @@ export interface CheerRelayInput {
   fromAddress: string
   amountLuna: string
   txHash: string
+  word?: string
 }
 
 export function cheerPlane(
@@ -112,8 +156,68 @@ export interface ClaimInput {
   publicKey: string
 }
 
-export function claimPlane(id: string, input: ClaimInput): Promise<{ note: string }> {
+export function claimPlane(
+  id: string,
+  input: ClaimInput,
+): Promise<{ note: string } | { caught: true; amountLuna: string; payoutTxHash: string }> {
   return request(`/planes/${id}/claim`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export interface PublicProfile {
+  username: string
+  address: string
+}
+
+export function searchProfiles(q: string): Promise<{ profiles: PublicProfile[] }> {
+  const query = encodeURIComponent(q.trim().toLowerCase())
+  return request(`/profiles/search?q=${query}`)
+}
+
+export function getProfileByUsername(username: string): Promise<PublicProfile | null> {
+  const name = encodeURIComponent(username.trim().toLowerCase())
+  return request<PublicProfile>(`/profiles/${name}`).catch((e) => {
+    if (e instanceof Error && e.message === 'not found') return null
+    throw e
+  })
+}
+
+export function getProfileByAddress(address: string): Promise<PublicProfile> {
+  const q = encodeURIComponent(address.trim())
+  return request(`/profiles/by-address?address=${q}`)
+}
+
+export function tryGetProfileByAddress(address: string): Promise<PublicProfile | null> {
+  const q = encodeURIComponent(address.trim())
+  return request<PublicProfile>(`/profiles/by-address?address=${q}`).catch((e) => {
+    if (e instanceof Error && e.message === 'not found') return null
+    throw e
+  })
+}
+
+export function getProfileBatch(addresses: string[]): Promise<{ profiles: PublicProfile[] }> {
+  const q = encodeURIComponent(addresses.join(','))
+  return request(`/profiles/batch?addresses=${q}`)
+}
+
+export interface ProfileWriteInput {
+  username: string
+  address: string
+  signature: string
+  publicKey: string
+}
+
+export function claimProfile(input: ProfileWriteInput): Promise<PublicProfile> {
+  return request('/profiles/claim', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function renameProfile(input: ProfileWriteInput): Promise<PublicProfile> {
+  return request('/profiles/rename', {
     method: 'POST',
     body: JSON.stringify(input),
   })

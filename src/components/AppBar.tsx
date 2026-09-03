@@ -1,14 +1,19 @@
-function shortAddr(addr: string): string {
-  if (addr.length <= 14) return addr
-  return `${addr.slice(0, 8)}…${addr.slice(-4)}`
-}
+import { shortAddr } from '../lib/inboxHelpers'
 
 interface Props {
   address?: string
+  username?: string | null
   compact?: boolean
+  onMyQr?: () => void
 }
 
-export default function AppBar({ address, compact }: Props) {
+export default function AppBar({ address, username, compact, onMyQr }: Props) {
+  const walletLabel = address
+    ? username
+      ? `@${username}`
+      : shortAddr(address)
+    : null
+
   return (
     <header className={`app-bar${compact ? ' app-bar-compact' : ''}`}>
       <div className="brand">
@@ -33,7 +38,17 @@ export default function AppBar({ address, compact }: Props) {
           {!compact && <span className="brand-tag">Paper planes with NIM</span>}
         </div>
       </div>
-      {address && <span className="wallet-chip">{shortAddr(address)}</span>}
+
+      {address && (
+        <div className="app-bar-actions">
+          {onMyQr && (
+            <button type="button" className="text-btn app-bar-qr" onClick={onMyQr}>
+              My QR
+            </button>
+          )}
+          {walletLabel && <span className="wallet-chip">{walletLabel}</span>}
+        </div>
+      )}
     </header>
   )
 }

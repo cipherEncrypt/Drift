@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { claimPlane, getPlane } from '../lib/api'
+import { useProfiles } from '../context/ProfileContext'
 import { etaLabel, flightProgress } from '../lib/flightClock'
 import {
   hasCheers,
   inboxStatusLabel,
-  shortAddr,
 } from '../lib/inboxHelpers'
+import { formatUserLabel } from '../lib/profiles'
 import { lunaToNim } from '../lib/luna'
 import { signClaim } from '../lib/nimiq'
 import { useNow } from '../hooks/useFlightProgress'
@@ -15,6 +16,7 @@ interface Props {
   planeId: string
   address: string
   onBack: () => void
+  onOpened?: () => void
 }
 
 function sumCheerLuna(cheers: Cheer[]): string {
@@ -26,8 +28,9 @@ function sumCheerLuna(cheers: Cheer[]): string {
   return String(total)
 }
 
-export default function Claim({ planeId, address, onBack }: Props) {
+export default function Claim({ planeId, address, onBack, onOpened }: Props) {
   const now = useNow()
+  const { loadAddresses, getUsername } = useProfiles()
   const [plane, setPlane] = useState<InboxPlane | null>(null)
   const [cheers, setCheers] = useState<Cheer[]>([])
   const [relays, setRelays] = useState<Relay[]>([])
@@ -58,6 +61,11 @@ export default function Claim({ planeId, address, onBack }: Props) {
         })
         setCheers(data.cheers)
         setRelays(data.relays)
+        loadAddresses([
+          data.plane.fromAddress,
+          ...data.cheers.map((c) => c.fromAddress),
+          ...data.relays.map((r) => r.fromAddress),
+        ])
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'load failed')
@@ -71,7 +79,7 @@ export default function Claim({ planeId, address, onBack }: Props) {
     return () => {
       cancelled = true
     }
-  }, [planeId])
+  }, [planeId, loadAddresses])
 
   async function onOpenNote() {
     setBusy(true)
@@ -79,15 +87,20 @@ export default function Claim({ planeId, address, onBack }: Props) {
 
     try {
       const sig = await signClaim(planeId)
-      const { note: text } = await claimPlane(planeId, {
+      const result = await claimPlane(planeId, {
         claimantAddress: address,
         signature: sig.signature,
         publicKey: sig.publicKey,
       })
-      setNote(text)
+      if (!('note' in result)) {
+        setError('unexpected response')
+        return
+      }
+      setNote(result.note)
       if (plane) {
         setPlane({ ...plane, status: 'opened' })
       }
+      onOpened?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'claim failed')
     } finally {
@@ -141,7 +154,9 @@ export default function Claim({ planeId, address, onBack }: Props) {
           </span>
           <div>
             <p className="eyebrow">Private plane</p>
-            <h2 className="screen-title">From {shortAddr(plane.fromAddress)}</h2>
+            <h2 className="screen-title">
+              From {formatUserLabel(getUsername(plane.fromAddress), plane.fromAddress)}
+            </h2>
           </div>
         </div>
 
@@ -161,7 +176,7 @@ export default function Claim({ planeId, address, onBack }: Props) {
             </div>
             <p className="hint small-hint">
               {progressPct >= 100
-                ? 'Plane has landed. You can open the note.'
+                ? 'Delivered. You can open the note.'
                 : 'NIM is already in your wallet while the plane flies.'}
             </p>
           </div>
@@ -184,7 +199,7 @@ export default function Claim({ planeId, address, onBack }: Props) {
           </div>
           <div>
             <dt>From</dt>
-            <dd>{shortAddr(plane.fromAddress)}</dd>
+            <dd>{formatUserLabel(getUsername(plane.fromAddress), plane.fromAddress)}</dd>
           </div>
         </dl>
       </div>
@@ -195,12 +210,14 @@ export default function Claim({ planeId, address, onBack }: Props) {
           <ul className="stamp-lines">
             {cheers.map((c) => (
               <li key={c.id}>
-                {shortAddr(c.fromAddress)} added {lunaToNim(c.amountLuna)} NIM
+                {formatUserLabel(getUsername(c.fromAddress), c.fromAddress)} added{' '}
+                {lunaToNim(c.amountLuna)} NIM
               </li>
             ))}
             {relays.map((r) => (
               <li key={r.id}>
-                {shortAddr(r.fromAddress)} relayed ({lunaToNim(r.amountLuna)} NIM)
+                {formatUserLabel(getUsername(r.fromAddress), r.fromAddress)} relayed (
+                {lunaToNim(r.amountLuna)} NIM)
               </li>
             ))}
           </ul>

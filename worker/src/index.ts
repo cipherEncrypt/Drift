@@ -1,12 +1,22 @@
 import {
   handleClaim,
   handleCheer,
+  handleConfig,
   handleCreatePlane,
   handleGetPlane,
   handleInbox,
   handleRelay,
+  handleSent,
   handleSky,
 } from './planes'
+import {
+  handleGetProfile,
+  handleProfileBatch,
+  handleProfileByAddress,
+  handleProfileClaim,
+  handleProfileRename,
+  handleProfileSearch,
+} from './profiles'
 import type { Env } from './env'
 
 const CORS = {
@@ -46,8 +56,41 @@ export default {
         return withCors(Response.json({ ok: true, service: 'drift-api' }))
       }
 
+      if (path === '/config' && request.method === 'GET') {
+        return withCors(await handleConfig(env))
+      }
+
+      if (path === '/profiles/search' && request.method === 'GET') {
+        return withCors(await handleProfileSearch(url, env))
+      }
+
+      if (path === '/profiles/by-address' && request.method === 'GET') {
+        return withCors(await handleProfileByAddress(url, env))
+      }
+
+      if (path === '/profiles/batch' && request.method === 'GET') {
+        return withCors(await handleProfileBatch(url, env))
+      }
+
+      if (path === '/profiles/claim' && request.method === 'POST') {
+        return withCors(await handleProfileClaim(request, env))
+      }
+
+      if (path === '/profiles/rename' && request.method === 'POST') {
+        return withCors(await handleProfileRename(request, env))
+      }
+
+      const profileMatch = path.match(/^\/profiles\/([a-z0-9_]{3,20})$/)
+      if (profileMatch && request.method === 'GET') {
+        return withCors(await handleGetProfile(profileMatch[1], env))
+      }
+
       if (path === '/inbox' && request.method === 'GET') {
         return withCors(await handleInbox(url, env))
+      }
+
+      if (path === '/sent' && request.method === 'GET') {
+        return withCors(await handleSent(url, env))
       }
 
       if (path === '/planes/sky' && request.method === 'GET') {

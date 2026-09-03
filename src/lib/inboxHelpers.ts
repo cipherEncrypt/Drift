@@ -13,7 +13,7 @@ export function inboxSection(plane: InboxPlane): InboxSection {
   return 'incoming'
 }
 
-export type StatusTone = 'flight' | 'ready' | 'opened'
+export type StatusTone = 'flight' | 'ready' | 'opened' | 'delivered'
 
 export function inboxStatusLabel(
   plane: InboxPlane,
@@ -23,9 +23,13 @@ export function inboxStatusLabel(
     return { label: 'Opened', tone: 'opened' }
   }
 
+  if (plane.status === 'landed') {
+    return { label: 'Delivered', tone: 'delivered' }
+  }
+
   const eta = etaLabel(plane.arrivesAt, now)
   if (eta === 'Landed') {
-    return { label: 'Ready to open', tone: 'ready' }
+    return { label: 'Delivered', tone: 'delivered' }
   }
 
   return { label: `In flight · ${eta}`, tone: 'flight' }

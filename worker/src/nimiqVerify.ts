@@ -22,6 +22,17 @@ export function verifyClaimSig(
   return pubKey.verify(sig, data)
 }
 
+export function verifyNameSig(
+  username: string,
+  publicKeyHex: string,
+  signatureHex: string,
+): boolean {
+  const pubKey = PublicKey.fromHex(publicKeyHex)
+  const sig = Signature.fromHex(signatureHex)
+  const data = nimiqMessageBytes(`drift:name:${username}`)
+  return pubKey.verify(sig, data)
+}
+
 export function addressesMatch(a: string, b: string): boolean {
   return normalizeAddress(a) === normalizeAddress(b)
 }

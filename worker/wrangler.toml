@@ -6,6 +6,14 @@ compatibility_flags = ["nodejs_compat"]
 [dev]
 port = 8787
 
+[vars]
+# Public treasury address throwers send NIM to (set your wallet)
+POSTCARD_TREASURY_ADDRESS = ""
+
+# Nimiq JSON-RPC for postcard payouts (your node or provider)
+NIMIQ_RPC_URL = ""
+NIMIQ_NETWORK_ID = "42"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "drift-db"

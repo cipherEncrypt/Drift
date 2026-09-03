@@ -1,0 +1,1 @@
+ALTER TABLE cheers ADD COLUMN word TEXT;

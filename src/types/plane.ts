@@ -20,6 +20,7 @@ export interface PublicPlane {
   arrivesAt: string
   fromLatLng: [number, number]
   toLatLng: [number, number] | null
+  payoutTxHash: string | null
   createdAt: string
 }
 
@@ -29,6 +30,7 @@ export interface Cheer {
   fromAddress: string
   amountLuna: string
   txHash: string
+  word: string | null
   createdAt: string
 }
 

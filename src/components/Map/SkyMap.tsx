@@ -14,8 +14,20 @@ interface Props {
   onSelect: (plane: PublicPlane) => void
 }
 
-const PLANE_MARKER_HTML = (selected: boolean) =>
-  `<div class="plane-marker${selected ? ' selected' : ''}" aria-hidden="true">
+function markerHtml(mode: PublicPlane['mode'], selected: boolean): string {
+  if (mode === 'postcard') {
+    return `<div class="postcard-marker${selected ? ' selected' : ''}" aria-hidden="true">
+      <span class="postcard-marker-ring"></span>
+      <span class="postcard-marker-body">
+        <svg viewBox="0 0 24 24" fill="none">
+          <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.75"/>
+          <path d="M4 9l8 5 8-5" stroke="currentColor" stroke-width="1.75"/>
+        </svg>
+      </span>
+    </div>`
+  }
+
+  return `<div class="plane-marker${selected ? ' selected' : ''}" aria-hidden="true">
     <span class="plane-marker-ring"></span>
     <span class="plane-marker-body">
       <svg viewBox="0 0 24 24" fill="none">
@@ -23,6 +35,7 @@ const PLANE_MARKER_HTML = (selected: boolean) =>
       </svg>
     </span>
   </div>`
+}
 
 export default function SkyMap({ planes, selectedId, onSelect }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -75,7 +88,7 @@ export default function SkyMap({ planes, selectedId, onSelect }: Props) {
       if (!marker) {
         const icon = L.divIcon({
           className: 'plane-marker-icon',
-          html: PLANE_MARKER_HTML(isSelected),
+          html: markerHtml(plane.mode, isSelected),
           iconSize: [32, 32],
           iconAnchor: [16, 16],
         })
@@ -84,9 +97,9 @@ export default function SkyMap({ planes, selectedId, onSelect }: Props) {
         markers.set(plane.id, marker)
       } else {
         marker.setLatLng(latLng)
-        const el = marker.getElement()?.querySelector('.plane-marker')
-        if (el) {
-          el.classList.toggle('selected', isSelected)
+        const root = marker.getElement()?.querySelector('.plane-marker, .postcard-marker')
+        if (root) {
+          root.classList.toggle('selected', isSelected)
         }
       }
     }

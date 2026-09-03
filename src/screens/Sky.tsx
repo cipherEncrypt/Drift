@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import SkyMap, { type PlaneOnMap } from '../components/Map/SkyMap'
 import { getPlane } from '../lib/api'
+import { useProfiles } from '../context/ProfileContext'
 import { useSky } from '../hooks/useSky'
 import { useNow } from '../hooks/useFlightProgress'
 import {
@@ -9,6 +10,7 @@ import {
   interpolateLatLng,
 } from '../lib/flightClock'
 import PlaneDetail from './PlaneDetail'
+import PostcardCatch from './PostcardCatch'
 import type { Cheer, PublicPlane, Relay } from '../types/plane'
 
 interface Props {
@@ -17,11 +19,19 @@ interface Props {
 
 export default function Sky({ walletAddress }: Props) {
   const now = useNow()
+  const { loadAddresses } = useProfiles()
   const { planes, loading, error, refresh, setPlanes } = useSky()
   const [selected, setSelected] = useState<PublicPlane | null>(null)
   const [cheers, setCheers] = useState<Cheer[]>([])
   const [relays, setRelays] = useState<Relay[]>([])
   const [detailLoading, setDetailLoading] = useState(false)
+
+  useEffect(() => {
+    const addrs = planes.flatMap((plane) =>
+      [plane.fromAddress, plane.toAddress].filter(Boolean) as string[],
+    )
+    loadAddresses(addrs)
+  }, [planes, loadAddresses])
 
   useEffect(() => {
     if (!selected) {
@@ -55,6 +65,10 @@ export default function Sky({ walletAddress }: Props) {
   const onMap: PlaneOnMap[] = []
 
   for (const plane of planes) {
+    if (plane.mode === 'postcard') {
+      onMap.push({ plane, position: plane.fromLatLng })
+      continue
+    }
     if (!plane.toLatLng) continue
     const progress = flightProgress(plane.launchedAt, plane.arrivesAt, now)
     const position = interpolateLatLng(plane.fromLatLng, plane.toLatLng, progress)
@@ -76,6 +90,11 @@ export default function Sky({ walletAddress }: Props) {
     setSelected(plane)
     setCheers(nextCheers)
     setRelays(nextRelays)
+    setPlanes((prev) => prev.map((p) => (p.id === plane.id ? plane : p)))
+  }
+
+  function handleCaught(plane: PublicPlane) {
+    setSelected(plane)
     setPlanes((prev) => prev.map((p) => (p.id === plane.id ? plane : p)))
   }
 
@@ -143,7 +162,18 @@ export default function Sky({ walletAddress }: Props) {
         <p className="status sky-loading">Scanning sky…</p>
       )}
 
-      {selected && (
+      {selected && selected.mode === 'postcard' && (
+        <div className="sky-detail-sheet">
+          <PostcardCatch
+            plane={selected}
+            walletAddress={walletAddress}
+            onClose={() => setSelected(null)}
+            onCaught={handleCaught}
+          />
+        </div>
+      )}
+
+      {selected && selected.mode === 'private' && (
         <div className="sky-detail-sheet">
           <PlaneDetail
             plane={selected}

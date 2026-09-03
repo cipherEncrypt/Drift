@@ -1,4 +1,5 @@
 import { init, type ErrorResponse, type NimiqProvider } from '@nimiq/mini-app-sdk'
+import { lunaToNumber } from './luna'
 
 const INIT_TIMEOUT_MS = 10_000
 
@@ -29,9 +30,10 @@ export async function listAccounts(): Promise<string[]> {
   return result
 }
 
-export async function sendNim(recipient: string, valueLuna: number): Promise<string> {
+export async function sendNim(recipient: string, valueLuna: string | number): Promise<string> {
+  const value = typeof valueLuna === 'string' ? lunaToNumber(valueLuna) : valueLuna
   const result = await provider().then((p) =>
-    p.sendBasicTransaction({ recipient, value: valueLuna }),
+    p.sendBasicTransaction({ recipient, value }),
   )
   if (isErrorResponse(result)) throw new Error(result.error.message)
   return result
@@ -44,6 +46,12 @@ export interface ClaimSig {
 
 export async function signClaim(planeId: string): Promise<ClaimSig> {
   const result = await provider().then((p) => p.sign(`claim:${planeId}`))
+  if (isErrorResponse(result)) throw new Error(result.error.message)
+  return result
+}
+
+export async function signName(username: string): Promise<ClaimSig> {
+  const result = await provider().then((p) => p.sign(`drift:name:${username}`))
   if (isErrorResponse(result)) throw new Error(result.error.message)
   return result
 }

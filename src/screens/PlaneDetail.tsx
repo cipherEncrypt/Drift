@@ -1,7 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { cheerPlane, relayPlane } from '../lib/api'
+import { useProfiles } from '../context/ProfileContext'
+import StatusPath from '../components/StatusPath'
+import UserLabel from '../components/UserLabel'
 import { lunaToNim, nimToLuna } from '../lib/luna'
 import { sendNim } from '../lib/nimiq'
+import {
+  parseCheerWordInput,
+  privatePlaneStatusLabel,
+} from '../lib/planeStatus'
+import { normalizeAddress } from '../lib/profiles'
 import type { Cheer, PublicPlane, Relay } from '../types/plane'
 
 interface Props {
@@ -12,11 +20,6 @@ interface Props {
   walletAddress: string
   onClose: () => void
   onUpdated: (plane: PublicPlane, cheers: Cheer[], relays: Relay[]) => void
-}
-
-function shortAddr(addr: string): string {
-  if (addr.length <= 12) return addr
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`
 }
 
 function sumLuna(values: string[]): string {
@@ -37,7 +40,9 @@ export default function PlaneDetail({
   onClose,
   onUpdated,
 }: Props) {
+  const { loadAddresses } = useProfiles()
   const [cheerNim, setCheerNim] = useState('0.1')
+  const [cheerWord, setCheerWord] = useState('')
   const [relayNim, setRelayNim] = useState('0.1')
   const [busy, setBusy] = useState<'cheer' | 'relay' | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -46,25 +51,48 @@ export default function PlaneDetail({
   const baseAmount = Number(plane.amountLuna)
   const cheerAmount = Number(cheerTotal)
   const displayTotal = String(baseAmount + cheerAmount)
+  const isSender =
+    normalizeAddress(walletAddress) === normalizeAddress(plane.fromAddress)
+  const { label: statusLabel, tone } = privatePlaneStatusLabel(plane)
 
   const canAct =
     plane.mode === 'private' &&
     plane.toAddress &&
+    !isSender &&
     (plane.status === 'in_flight' || plane.status === 'landed')
+
+  useEffect(() => {
+    const addrs = [
+      plane.fromAddress,
+      plane.toAddress,
+      ...cheers.map((c) => c.fromAddress),
+      ...relays.map((r) => r.fromAddress),
+    ].filter((addr): addr is string => Boolean(addr))
+    loadAddresses(addrs)
+  }, [plane, cheers, relays, loadAddresses])
 
   async function doCheer() {
     if (!plane.toAddress) return
     setError(null)
+
+    const wordResult = parseCheerWordInput(cheerWord)
+    if (cheerWord.trim() && wordResult === 'invalid') {
+      setError('cheer word must be one word, 2-12 letters')
+      return
+    }
+
     setBusy('cheer')
 
     try {
       const amountLuna = nimToLuna(cheerNim)
-      const txHash = await sendNim(plane.toAddress, Number(amountLuna))
+      const txHash = await sendNim(plane.toAddress, amountLuna)
       const { cheer } = await cheerPlane(plane.id, {
         fromAddress: walletAddress,
         amountLuna,
         txHash,
+        word: wordResult ?? undefined,
       })
+      setCheerWord('')
       onUpdated(plane, [...cheers, cheer], relays)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'cheer failed')
@@ -80,7 +108,7 @@ export default function PlaneDetail({
 
     try {
       const amountLuna = nimToLuna(relayNim)
-      const txHash = await sendNim(plane.toAddress, Number(amountLuna))
+      const txHash = await sendNim(plane.toAddress, amountLuna)
       const { relay, newArrivesAt } = await relayPlane(plane.id, {
         fromAddress: walletAddress,
         amountLuna,
@@ -98,7 +126,7 @@ export default function PlaneDetail({
     <section className="card card-elevated plane-detail">
       <div className="row-head">
         <div>
-          <p className="eyebrow">In flight</p>
+          <p className="eyebrow">{isSender ? 'Sent' : 'In flight'}</p>
           <h2 className="screen-title">Private plane</h2>
         </div>
         <button type="button" className="text-btn" onClick={onClose}>
@@ -106,16 +134,22 @@ export default function PlaneDetail({
         </button>
       </div>
 
-      <p className="hint sealed-hint">Sealed. Only the recipient can open the note.</p>
+      {isSender ? (
+        <StatusPath plane={plane} />
+      ) : (
+        <p className="hint sealed-hint">Sealed. Only the recipient can open the note.</p>
+      )}
 
       <dl className="meta-grid">
         <div>
           <dt>From</dt>
-          <dd>{shortAddr(plane.fromAddress)}</dd>
+          <dd><UserLabel address={plane.fromAddress} /></dd>
         </div>
         <div>
           <dt>To</dt>
-          <dd>{plane.toAddress ? shortAddr(plane.toAddress) : '—'}</dd>
+          <dd>
+            {plane.toAddress ? <UserLabel address={plane.toAddress} /> : '—'}
+          </dd>
         </div>
         <div>
           <dt>Send</dt>
@@ -133,12 +167,16 @@ export default function PlaneDetail({
         </div>
         <div>
           <dt>Status</dt>
-          <dd>{plane.status}</dd>
+          <dd>
+            <span className={`status-pill tone-${tone}`}>{statusLabel}</span>
+          </dd>
         </div>
-        <div>
-          <dt>ETA</dt>
-          <dd className="eta-value">{eta}</dd>
-        </div>
+        {!isSender && plane.status === 'in_flight' && (
+          <div>
+            <dt>ETA</dt>
+            <dd className="eta-value">{eta}</dd>
+          </div>
+        )}
       </dl>
 
       {canAct && (
@@ -164,7 +202,22 @@ export default function PlaneDetail({
               {busy === 'cheer' ? 'Sending…' : 'Add NIM'}
             </button>
           </div>
-          <p className="hint small-hint">Extra NIM goes to the recipient. You cannot read the note.</p>
+          <div className="action-row cheer-word-row">
+            <label className="field-label" htmlFor="cheer-word">Word</label>
+            <input
+              id="cheer-word"
+              className="input input-sm"
+              type="text"
+              value={cheerWord}
+              onChange={(e) => setCheerWord(e.target.value)}
+              placeholder="optional"
+              maxLength={12}
+              disabled={busy !== null}
+            />
+          </div>
+          <p className="hint small-hint">
+            Extra NIM goes to the recipient. Optional one-word stamp.
+          </p>
 
           {plane.status === 'in_flight' && (
             <>
@@ -199,16 +252,18 @@ export default function PlaneDetail({
 
       {(cheers.length > 0 || relays.length > 0) && (
         <div className="stamp-list">
-          <p className="label">History</p>
+          <p className="label">Stamps</p>
           <ul>
             {cheers.map((c) => (
-              <li key={c.id}>
-                {shortAddr(c.fromAddress)} added {lunaToNim(c.amountLuna)} NIM
+              <li key={c.id} className="cheer-stamp">
+                <UserLabel address={c.fromAddress} />
+                {c.word ? ` · ${c.word}` : ` · +${lunaToNim(c.amountLuna)} NIM`}
               </li>
             ))}
             {relays.map((r) => (
               <li key={r.id}>
-                {shortAddr(r.fromAddress)} relayed ({lunaToNim(r.amountLuna)} NIM)
+                <UserLabel address={r.fromAddress} /> relayed (
+                {lunaToNim(r.amountLuna)} NIM)
               </li>
             ))}
           </ul>

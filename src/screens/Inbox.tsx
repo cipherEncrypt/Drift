@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { inboxSection } from '../lib/inboxHelpers'
+import { useProfiles } from '../context/ProfileContext'
 import InboxItem from '../components/InboxItem'
 import type { InboxPlane } from '../types/plane'
 
@@ -40,8 +42,13 @@ function InboxSection({
 }
 
 export default function Inbox({ planes, loading, error, refresh, onOpen }: Props) {
+  const { loadAddresses } = useProfiles()
   const incoming = planes.filter((p) => inboxSection(p) === 'incoming')
   const opened = planes.filter((p) => inboxSection(p) === 'opened')
+
+  useEffect(() => {
+    loadAddresses(planes.map((plane) => plane.fromAddress))
+  }, [planes, loadAddresses])
 
   return (
     <section className="inbox-screen">

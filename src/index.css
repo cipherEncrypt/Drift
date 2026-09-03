@@ -67,6 +67,15 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  padding-bottom: 0.5rem;
+}
+
+.app-banner-error {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8125rem;
+  text-align: center;
 }
 
 /* —— App bar —— */
@@ -141,6 +150,19 @@ body {
   border-radius: var(--radius-pill);
   box-shadow: var(--shadow-sm);
   word-break: break-all;
+}
+
+.app-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.app-bar-qr {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.35rem 0.5rem;
 }
 
 /* —— Typography —— */
@@ -697,6 +719,14 @@ body {
 /* Detail sheet */
 
 .sky-detail-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--nav-height) + max(0.5rem, env(safe-area-inset-bottom)));
+  z-index: 150;
+  padding: 0 0.75rem;
+  max-height: 72vh;
+  overflow-y: auto;
   flex-shrink: 0;
   animation: sheet-up 0.25s ease;
 }
@@ -1124,6 +1154,11 @@ body {
   color: var(--navy);
 }
 
+.status-pill.tone-delivered {
+  background: rgba(245, 200, 66, 0.35);
+  color: var(--navy);
+}
+
 .status-pill.tone-opened {
   background: rgba(26, 39, 68, 0.08);
   color: var(--text-muted);
@@ -1265,6 +1300,151 @@ body {
   background: var(--gold);
   border-radius: var(--radius-pill);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* —— Postcard —— */
+
+.eyebrow-postcard {
+  color: #c05621;
+}
+
+.postcard-throw {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.btn-postcard {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 2px dashed rgba(192, 86, 33, 0.45);
+  border-radius: var(--radius-md);
+  background: rgba(255, 237, 213, 0.5);
+  color: #9a3412;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn-postcard-solid {
+  display: block;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, #fb923c 0%, #ea580c 100%);
+  color: #fff;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35);
+}
+
+.btn-postcard-solid:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.postcard-form {
+  margin-top: 0.5rem;
+  padding: 1rem;
+  border: 1px solid rgba(234, 88, 12, 0.25);
+  background: linear-gradient(145deg, #fff7ed 0%, #fff 100%);
+}
+
+.postcard-title {
+  margin: 0.15rem 0 0;
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: #9a3412;
+}
+
+.postcard-warning {
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  color: #9a3412;
+  line-height: 1.45;
+}
+
+.postcard-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.postcard-actions .btn-postcard-solid {
+  flex: 1;
+}
+
+.postcard-catch {
+  border: 1px solid rgba(234, 88, 12, 0.3);
+  background: linear-gradient(145deg, #fff7ed 0%, #fff 100%);
+}
+
+.postcard-banner {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: rgba(234, 88, 12, 0.12);
+  color: #9a3412;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.postcard-win .tx-hash {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  word-break: break-all;
+  color: var(--text-muted);
+  font-family: ui-monospace, monospace;
+}
+
+.postcard-marker {
+  position: relative;
+  width: 34px;
+  height: 34px;
+}
+
+.postcard-marker-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: rgba(234, 88, 12, 0.35);
+  animation: marker-pulse 2s ease-out infinite;
+}
+
+.postcard-marker.selected .postcard-marker-ring {
+  background: rgba(234, 88, 12, 0.25);
+}
+
+.postcard-marker-body {
+  position: absolute;
+  inset: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #ea580c;
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(234, 88, 12, 0.45);
+  border: 2px solid #fff;
+}
+
+.postcard-marker.selected .postcard-marker-body {
+  background: #fff;
+  color: #ea580c;
+  border-color: #ea580c;
+}
+
+.postcard-marker-body svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* —— Legacy aliases —— */
@@ -1440,6 +1620,11 @@ h1 {
     color: #f0f4fa;
   }
 
+  .status-pill.tone-delivered {
+    background: rgba(245, 200, 66, 0.25);
+    color: #f0f4fa;
+  }
+
   .inbox-cheer-tag {
     background: rgba(245, 200, 66, 0.2);
     color: #f0f4fa;
@@ -1449,4 +1634,136 @@ h1 {
     background: linear-gradient(145deg, #1a2438 0%, #121a2e 100%);
     border-color: rgba(245, 200, 66, 0.25);
   }
+}
+
+.profile-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  background: rgba(15, 22, 38, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.profile-claim {
+  width: 100%;
+  max-width: 22rem;
+}
+
+.recipient-preview {
+  margin-top: -0.25rem;
+}
+
+.small-error {
+  font-size: 0.8125rem;
+  margin-top: -0.25rem;
+}
+
+.username-suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-elevated);
+}
+
+.username-suggestion {
+  display: block;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.username-suggestion:hover {
+  background: rgba(26, 39, 68, 0.06);
+}
+
+.send-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.sent-panel {
+  padding: 1.25rem;
+}
+
+.sent-list {
+  margin-top: 0.5rem;
+}
+
+.status-path {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.status-path-step {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.status-path-step.done {
+  color: var(--navy);
+}
+
+.status-path-step.current {
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.status-path-mark {
+  font-size: 0.7rem;
+}
+
+.cheer-stamp {
+  font-size: 0.9rem;
+}
+
+.cheer-word-row {
+  margin-top: -0.25rem;
+}
+
+.plane-qr-card {
+  width: 100%;
+  max-width: 22rem;
+}
+
+.plane-qr-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem 0;
+}
+
+.plane-qr-img {
+  width: 240px;
+  height: 240px;
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+
+.profile-skip {
+  margin-top: 0.75rem;
+  align-self: center;
+}
+
+.plane-qr-link {
+  word-break: break-all;
+  font-size: 0.6875rem;
 }

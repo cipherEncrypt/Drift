@@ -3,8 +3,8 @@ import {
   flightProgressPct,
   hasCheers,
   inboxStatusLabel,
-  shortAddr,
 } from '../lib/inboxHelpers'
+import UserLabel from './UserLabel'
 import { useNow } from '../hooks/useFlightProgress'
 import type { InboxPlane } from '../types/plane'
 
@@ -35,7 +35,9 @@ export default function InboxItem({ plane, onOpen }: Props) {
 
         <span className="inbox-item-body">
           <span className="inbox-item-top">
-            <span className="inbox-from">{shortAddr(plane.fromAddress)}</span>
+            <span className="inbox-from">
+              <UserLabel address={plane.fromAddress} />
+            </span>
             <span className={`status-pill tone-${tone}`}>{label}</span>
           </span>
 

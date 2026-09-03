@@ -1,7 +1,7 @@
 import type { Cheer, InboxPlane, PlaneRow, PublicPlane, Relay } from './types'
 
 const PLANE_COLS =
-  'id, mode, from_address, to_address, amount_luna, tx_hash, status, launched_at, arrives_at, from_lat, from_lng, to_lat, to_lng, created_at'
+  'id, mode, from_address, to_address, amount_luna, tx_hash, status, launched_at, arrives_at, from_lat, from_lng, to_lat, to_lng, payout_tx_hash, created_at'
 
 export function rowToPublic(row: PlaneRow): PublicPlane {
   const toLatLng =
@@ -21,6 +21,7 @@ export function rowToPublic(row: PlaneRow): PublicPlane {
     arrivesAt: row.arrives_at,
     fromLatLng: [row.from_lat, row.from_lng],
     toLatLng,
+    payoutTxHash: row.payout_tx_hash ?? null,
     createdAt: row.created_at,
   }
 }
@@ -78,7 +79,9 @@ export async function inboxPlanesEnriched(
 ): Promise<InboxPlane[]> {
   const norm = normalizeAddress(address)
   const { results } = await db
-    .prepare(`SELECT ${PLANE_COLS} FROM planes ORDER BY created_at DESC`)
+    .prepare(
+      `SELECT ${PLANE_COLS} FROM planes WHERE to_address IS NOT NULL ORDER BY created_at DESC`,
+    )
     .all()
 
   const rows = (results ?? []) as PlaneRow[]
@@ -108,18 +111,46 @@ export async function inboxPlanesEnriched(
 
 export async function skyPlanes(db: D1Database, status: string): Promise<PublicPlane[]> {
   const { results } = await db
-    .prepare(`SELECT ${PLANE_COLS} FROM planes ORDER BY arrives_at ASC`)
+    .prepare(
+      `SELECT ${PLANE_COLS} FROM planes WHERE status = ? ORDER BY arrives_at ASC`,
+    )
+    .bind(status)
     .all()
 
-  const rows = (results ?? []) as PlaneRow[]
-  return rows.filter((row) => row.status === status).map(rowToPublic)
+  return ((results ?? []) as PlaneRow[]).map(rowToPublic)
 }
 
 export function normalizeAddress(addr: string): string {
   return addr.replace(/\s/g, '').toUpperCase()
 }
 
+export async function applyLandedTransitions(db: D1Database): Promise<void> {
+  const now = new Date().toISOString()
+  await db
+    .prepare(
+      `UPDATE planes SET status = 'landed'
+       WHERE mode = 'private' AND status = 'in_flight' AND arrives_at <= ?`,
+    )
+    .bind(now)
+    .run()
+}
+
+export async function sentPlanes(db: D1Database, address: string): Promise<PublicPlane[]> {
+  const norm = normalizeAddress(address)
+  const { results } = await db
+    .prepare(
+      `SELECT ${PLANE_COLS} FROM planes WHERE mode = 'private' ORDER BY created_at DESC`,
+    )
+    .all()
+
+  const rows = (results ?? []) as PlaneRow[]
+  return rows
+    .filter((row) => normalizeAddress(row.from_address) === norm)
+    .map(rowToPublic)
+}
+
 export const FLIGHT_MS = 60 * 60 * 1000
+export const POSTCARD_HOVER_MS = 24 * 60 * 60 * 1000
 
 /** 0.1 NIM relay fee saves 10 minutes of flight time */
 export const LUNA_PER_TEN_MIN = 10_000
@@ -161,6 +192,7 @@ interface CheerRow {
   from_address: string
   amount_luna: string
   tx_hash: string
+  word: string | null
   created_at: string
 }
 
@@ -181,6 +213,7 @@ export function rowToCheer(row: CheerRow): Cheer {
     fromAddress: row.from_address,
     amountLuna: row.amount_luna,
     txHash: row.tx_hash,
+    word: row.word ?? null,
     createdAt: row.created_at,
   }
 }
@@ -200,7 +233,7 @@ export function rowToRelay(row: RelayRow): Relay {
 export async function cheersForPlane(db: D1Database, planeId: string): Promise<Cheer[]> {
   const { results } = await db
     .prepare(
-      'SELECT id, plane_id, from_address, amount_luna, tx_hash, created_at FROM cheers WHERE plane_id = ? ORDER BY created_at ASC',
+      'SELECT id, plane_id, from_address, amount_luna, tx_hash, word, created_at FROM cheers WHERE plane_id = ? ORDER BY created_at ASC',
     )
     .bind(planeId)
     .all()
