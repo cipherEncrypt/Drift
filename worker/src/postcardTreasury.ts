@@ -9,9 +9,20 @@ import { nimiqBlockHeight, nimiqRpc } from './nimiqRpc'
 
 let wasmReady: Promise<void> | null = null
 
+const CORE_WASM_URL =
+  'https://unpkg.com/@nimiq/core@2.20.0/web/main-wasm/index_bg.wasm'
+
 function ensureWasm(): Promise<void> {
   if (!wasmReady) {
-    wasmReady = init().then(() => undefined)
+    wasmReady = (async () => {
+      try {
+        await init()
+      } catch {
+        const res = await fetch(CORE_WASM_URL)
+        if (!res.ok) throw new Error('nimiq wasm load failed')
+        await init({ module_or_path: await res.arrayBuffer() })
+      }
+    })()
   }
   return wasmReady
 }

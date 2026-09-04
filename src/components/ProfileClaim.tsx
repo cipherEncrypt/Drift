@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { claimProfile } from '../lib/api'
+import { claimProfile, debugProfileClaim } from '../lib/api'
 import { signName } from '../lib/nimiq'
 
 interface Props {
@@ -24,17 +24,33 @@ export default function ProfileClaim({ address, onClaimed, onSkip }: Props) {
     setBusy(true)
     setError(null)
 
+    const payload = {
+      username: normalized,
+      address,
+      signature: '',
+      publicKey: '',
+    }
+
     try {
       const sig = await signName(normalized)
-      await claimProfile({
-        username: normalized,
-        address,
-        signature: sig.signature,
-        publicKey: sig.publicKey,
-      })
+      payload.signature = String(sig.signature).trim()
+      payload.publicKey = String(sig.publicKey).trim()
+      await claimProfile(payload)
       onClaimed(normalized)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'claim failed')
+      const base = err instanceof Error ? err.message : 'claim failed'
+      if (base === 'bad signature' && payload.signature && payload.publicKey) {
+        try {
+          const debug = await debugProfileClaim(payload)
+          setError(
+            `${base} (sig ${debug.sigLen}b, pub ${debug.pubLen}b, verify ${String(debug.verifyOk)}, addr ${String(debug.addressMatch)})`,
+          )
+          return
+        } catch {
+          // fall through
+        }
+      }
+      setError(base)
     } finally {
       setBusy(false)
     }

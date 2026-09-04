@@ -14,6 +14,7 @@ import {
   handleProfileBatch,
   handleProfileByAddress,
   handleProfileClaim,
+  handleProfileDebugVerify,
   handleProfileRename,
   handleProfileSearch,
 } from './profiles'
@@ -70,6 +71,10 @@ export default {
 
       if (path === '/profiles/batch' && request.method === 'GET') {
         return withCors(await handleProfileBatch(url, env))
+      }
+
+      if (path === '/profiles/debug-verify' && request.method === 'POST') {
+        return withCors(await handleProfileDebugVerify(request))
       }
 
       if (path === '/profiles/claim' && request.method === 'POST') {

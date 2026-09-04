@@ -216,6 +216,15 @@ export function claimProfile(input: ProfileWriteInput): Promise<PublicProfile> {
   })
 }
 
+export function debugProfileClaim(
+  input: ProfileWriteInput,
+): Promise<Record<string, unknown>> {
+  return request('/profiles/debug-verify', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
 export function renameProfile(input: ProfileWriteInput): Promise<PublicProfile> {
   return request('/profiles/rename', {
     method: 'POST',

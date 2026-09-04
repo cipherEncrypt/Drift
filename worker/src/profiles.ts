@@ -4,6 +4,7 @@ import { normalizeAddress } from './db'
 import {
   addressFromPublicKey,
   addressesMatch,
+  debugNimiqVerify,
   verifyNameSig,
 } from './nimiqVerify'
 import {
@@ -77,12 +78,27 @@ async function verifyProfileSig(
 ): Promise<Response | null> {
   try {
     const sigOk = await verifyNameSig(username, publicKey, signature)
-    const derivedAddr = await addressFromPublicKey(publicKey)
-    if (!sigOk || !addressesMatch(derivedAddr, address)) {
+    if (!sigOk) {
+      const debug = await debugNimiqVerify(
+        `drift:name:${username}`,
+        publicKey,
+        signature,
+        address,
+      )
+      console.log('profile claim verify failed', JSON.stringify(debug))
       return err('bad signature', 403)
     }
+
+    const derivedAddr = await addressFromPublicKey(publicKey)
+    if (!addressesMatch(derivedAddr, address)) {
+      return err('signature address mismatch', 403)
+    }
     return null
-  } catch {
+  } catch (err) {
+    console.log(
+      'profile claim verify error',
+      err instanceof Error ? err.message : String(err),
+    )
     return err('bad signature', 403)
   }
 }
@@ -154,6 +170,30 @@ export async function handleGetProfile(username: string, env: Env): Promise<Resp
   if (!row) return err('not found', 404)
 
   return json(rowToPublic(row))
+}
+
+export async function handleProfileDebugVerify(
+  request: Request,
+): Promise<Response> {
+  const parsed = await parseJsonBody<ProfileWriteBody>(request)
+  if (parsed instanceof Response) return parsed
+
+  const username = normalizeUsername(parsed.username ?? '')
+  const address = trimNonEmpty(parsed.address)
+  const signature = trimNonEmpty(parsed.signature)
+  const publicKey = trimNonEmpty(parsed.publicKey)
+
+  if (!username || !address || !signature || !publicKey) {
+    return err('username, address, signature, and publicKey required', 400)
+  }
+
+  const debug = await debugNimiqVerify(
+    `drift:name:${username}`,
+    publicKey,
+    signature,
+    address,
+  )
+  return json(debug)
 }
 
 export async function handleProfileClaim(
