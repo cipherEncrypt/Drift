@@ -81,88 +81,119 @@ body {
 /* —— App bar —— */
 
 .app-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin: 0 -0.25rem;
+  padding: 0.5rem 0.65rem;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.app-bar-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.25rem 0;
-}
-
-.app-bar-compact {
-  padding-bottom: 0;
+  min-height: 2.75rem;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.6rem;
   min-width: 0;
 }
 
 .brand-mark {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
+  border-radius: 11px;
   background: linear-gradient(145deg, var(--navy) 0%, #2a3d66 100%);
   color: var(--gold);
   box-shadow: var(--shadow-sm);
 }
 
 .brand-mark svg {
-  width: 22px;
-  height: 22px;
-}
-
-.brand-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
+  width: 20px;
+  height: 20px;
 }
 
 .brand-name {
-  font-size: 1.125rem;
+  font-size: 1.0625rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--navy);
-  line-height: 1.2;
-}
-
-.brand-tag {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  line-height: 1.3;
-}
-
-.wallet-chip {
-  flex-shrink: 0;
-  max-width: 42%;
-  padding: 0.35rem 0.65rem;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--navy);
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-sm);
-  word-break: break-all;
+  line-height: 1;
 }
 
 .app-bar-actions {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.45rem;
   flex-shrink: 0;
 }
 
-.app-bar-qr {
-  font-size: 0.75rem;
+.app-bar-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--card-border);
+  border-radius: 11px;
+  background: var(--card);
+  color: var(--gold-deep);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.app-bar-icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.app-bar-icon-btn:active {
+  transform: scale(0.96);
+}
+
+.app-bar-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 9.5rem;
+  padding: 0.42rem 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 700;
-  padding: 0.35rem 0.5rem;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+}
+
+.app-bar-user::before {
+  content: '';
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 0 2px rgba(245, 200, 66, 0.25);
 }
 
 /* —— Typography —— */
@@ -1518,10 +1549,21 @@ h1 {
     background: linear-gradient(145deg, #2a3d66 0%, #1a2744 100%);
   }
 
+  .app-bar {
+    background: rgba(18, 26, 46, 0.88);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .app-bar-icon-btn,
+  .app-bar-user {
+    background: rgba(26, 36, 56, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #e8edf5;
+  }
+
   .brand-name,
   .screen-title,
   .gate-title,
-  .wallet-chip,
   .plane-from,
   .empty-title,
   .sky-empty-title,
@@ -1530,16 +1572,11 @@ h1 {
     color: #f0f4fa;
   }
 
-  .wallet-chip,
   .nav-dock,
   .sky-badge,
   .sky-refresh {
     background: rgba(26, 36, 56, 0.92);
     border-color: rgba(255, 255, 255, 0.1);
-  }
-
-  .wallet-chip {
-    color: #e8edf5;
   }
 
   .dock-btn.active {

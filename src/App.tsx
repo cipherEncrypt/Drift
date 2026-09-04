@@ -132,7 +132,6 @@ function AppShell({
       <AppBar
         address={address}
         username={ownUsername}
-        compact={isSky}
         onMyQr={() => setShowQr(true)}
       />
 
