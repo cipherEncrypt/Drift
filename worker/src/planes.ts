@@ -298,8 +298,8 @@ export async function handleClaim(
   let derivedAddr = ''
 
   try {
-    sigOk = verifyClaimSig(planeId, publicKey, signature)
-    derivedAddr = addressFromPublicKey(publicKey)
+    sigOk = await verifyClaimSig(planeId, publicKey, signature)
+    derivedAddr = await addressFromPublicKey(publicKey)
   } catch {
     await recordClaim(db, planeId, claimInput, 'rejected')
     return err('bad signature', 403)

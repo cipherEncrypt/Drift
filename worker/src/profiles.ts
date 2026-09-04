@@ -76,8 +76,8 @@ async function verifyProfileSig(
   signature: string,
 ): Promise<Response | null> {
   try {
-    const sigOk = verifyNameSig(username, publicKey, signature)
-    const derivedAddr = addressFromPublicKey(publicKey)
+    const sigOk = await verifyNameSig(username, publicKey, signature)
+    const derivedAddr = await addressFromPublicKey(publicKey)
     if (!sigOk || !addressesMatch(derivedAddr, address)) {
       return err('bad signature', 403)
     }
