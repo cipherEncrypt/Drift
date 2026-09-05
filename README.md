@@ -1,39 +1,106 @@
 # Drift
 
-Drift is a Mini App inside Nimiq Pay. Paper planes with NIM.
+Send NIM as paper planes. Open Drift inside **Nimiq Pay** on your phone.
 
-Open in Pay and you should see Sky, Send, and Inbox.
+You pick someone, attach a short sealed note, and send real NIM. The plane shows up on a live map. Only the recipient can open the note. Anyone watching can cheer (add NIM) or relay (speed it up) without ever seeing the message.
 
-## Setup
+There is also a separate **postcard** mode: throw NIM into the open sky, first person to catch it wins.
+
+Built for the [Nimiq Mini Apps Competition](https://miniappscompetition.com).
+
+**Live app:** https://drift-tan-eight.vercel.app
+
+**Open in Pay:**
+
+```
+nimiqpay://miniapp?url=https://drift-tan-eight.vercel.app
+```
+
+---
+
+## How it works
+
+**Send (private mail)**  
+Pick a Nimiq address or `@username`, enter amount and note, confirm in Pay. NIM goes straight to them on-chain. The note stays on our server until they claim it.
+
+**Inbox**  
+Incoming planes land here. Tap one, sign a claim, read the note. Wrong wallet gets rejected.
+
+**Sky**  
+Map of planes in flight. You see amounts, routes, and ETAs. Notes never show on this screen.
+
+**Cheer / Relay**  
+Tap someone else's private plane. Cheer adds NIM to the recipient. Relay pays a small fee to make the plane arrive sooner.
+
+**Postcard**  
+Separate from private mail. Throw NIM to the treasury. First valid catch wins a payout. Needs treasury setup (see below).
+
+**Extras**  
+Usernames (`@cipher`), sent list with delivery status, QR code to prefill Send to your wallet, optional cheer word stamp.
+
+---
+
+## Stack
+
+| Part | Tech |
+|------|------|
+| Frontend | Vite, React, TypeScript, Leaflet |
+| Wallet | `@nimiq/mini-app-sdk` in Nimiq Pay |
+| API | Cloudflare Worker |
+| Database | Cloudflare D1 |
+| Frontend host | Vercel |
+| Chain | Nimiq mainnet |
+
+Drift never holds your private keys. Sends and signatures go through Nimiq Pay's native confirm dialog.
+
+---
+
+## Local dev
+
+Install deps:
 
 ```bash
 npm install
 ```
 
-## Local dev
-
-Terminal 1, API + D1:
+**Terminal 1** (API + local D1):
 
 ```bash
 npm run db:migrate:local
 npm run worker:dev
 ```
 
-Terminal 2, frontend (proxies `/api` to worker):
+**Terminal 2** (frontend, proxies `/api` to the worker):
 
 ```bash
 npm run dev
 ```
 
-Open the LAN URL in Nimiq Pay Discover, or use your Vercel URL with `DRIFT_API_URL` set.
+Open the LAN URL shown in the terminal inside Nimiq Pay Discover.
 
-**Note:** `git push` deploys the Vercel frontend only. The Worker is separate:
+Chrome alone will say "Open in Nimiq Pay." That is normal.
 
-```bash
-npm run worker:deploy
+---
+
+## Deploy
+
+Frontend and API deploy separately.
+
+### Frontend (Vercel)
+
+Push to GitHub. Vercel picks up the build automatically.
+
+Set this env var in Vercel:
+
+```
+DRIFT_API_URL=https://drift-api.driftplanes.workers.dev
 ```
 
-## Deploy API (Cloudflare Worker + D1)
+The app also works through Vercel's `/api` proxy if `DRIFT_API_URL` is unset locally.
+
+### API (Cloudflare Worker + D1)
+
+First time only:
 
 ```bash
 npx wrangler login
@@ -47,71 +114,85 @@ npm run db:migrate
 npm run worker:deploy
 ```
 
-After schema changes, run `npm run db:migrate` before `npm run worker:deploy`. Frontend deploy is separate: `git push` (Vercel).
+After any schema change, run `npm run db:migrate` before `npm run worker:deploy`.
 
-Note the worker URL, e.g. `https://drift-api.YOUR_SUBDOMAIN.workers.dev`
+`git push` does **not** deploy the worker. Run `npm run worker:deploy` yourself.
 
-## Deploy frontend (Vercel)
-
-Push to GitHub. In Vercel project settings add:
-
-```
-DRIFT_API_URL=https://drift-api.driftplanes.workers.dev
-```
-
-Redeploy. Open `https://drift-tan-eight.vercel.app` in Nimiq Pay.
-
-Direct deeplink:
-
-`nimiqpay://miniapp?url=https://drift-tan-eight.vercel.app`
+---
 
 ## Test in Nimiq Pay
 
-1. Open Drift in Pay (HTTPS URL or deeplink).
-2. **Send**: pick recipient, amount, note. Confirm NIM send in Pay.
-3. **Inbox** on recipient wallet: tap plane, sign, open note.
-4. **Sky**: tap a private plane to cheer or relay (third wallet can cheer too).
-5. **Postcard** (only if treasury is configured): throw on Send, catch on Sky.
+Use two or three real wallets on a phone.
 
-Chrome shows "Open in Nimiq Pay." Expected.
+1. Open the app in Pay (HTTPS URL or deeplink above).
+2. Claim a username if prompted (optional, can skip).
+3. **Send:** send a small amount + note to wallet B.
+4. **Sky:** watch the plane move. From wallet C, cheer or relay it.
+5. **Inbox (wallet B):** tap the plane, sign claim, read the note.
+6. **Send tab:** check your sent list shows In flight → Delivered → Opened.
+7. **Postcard:** throw on Send, catch on Sky from another wallet (if treasury is funded).
 
-## What works
+---
 
-- Private send: NIM goes to recipient on-chain; note stored server-side
-- Claim: sign `claim:<planeId>`; only matching recipient gets the note
-- Sky map: in-flight private planes (metadata only, no note on public routes)
-- Cheer / relay: private planes only; NIM to `toAddress`; relay shortens ETA
-- Inbox: incoming vs opened, flight progress, cheer totals, badge
-- Sent list: sender sees In flight → Delivered → Opened
-- Cheer word: optional one-word stamp on private planes
-- Plane-request QR: My QR in the app bar opens a scan link to Send (not auto-pay)
-- Postcard throw: NIM to treasury address from `GET /config`
-- Postcard catch: atomic catch + treasury payout (when fully configured)
+## What works now
 
-## Postcard treasury setup
+- Private send with on-chain NIM and sealed note
+- Claim with wallet signature (`claim:<planeId>`)
+- Sky map with in-flight planes (no notes on public routes)
+- Cheer and relay on private planes
+- Inbox with sections, progress, cheer totals
+- Sent list for the sender
+- Usernames with signed claim
+- Plane-request QR in the header
+- Postcard throw and catch (with treasury configured)
+- Cheer word stamp on private planes
 
-Postcard is hidden until `POSTCARD_TREASURY_ADDRESS` is set. Catch stays hidden until payout secrets exist too.
+---
 
-1. Create a Nimiq wallet for the treasury.
-2. In `worker/wrangler.toml` set `POSTCARD_TREASURY_ADDRESS` and `NIMIQ_RPC_URL`.
-3. Set the private key as a Worker secret (never commit):
+## Postcard treasury
+
+Postcard throw stays hidden until `POSTCARD_TREASURY_ADDRESS` is set in `worker/wrangler.toml`. Catch and payout need the RPC URL and a private key secret too.
+
+1. Create a dedicated Nimiq wallet for the treasury.
+2. Set `POSTCARD_TREASURY_ADDRESS` and `NIMIQ_RPC_URL` in `worker/wrangler.toml`.
+3. Store the private key as a Worker secret (never commit it):
 
    ```bash
    npx wrangler secret put POSTCARD_TREASURY_PRIVATE_KEY --config worker/wrangler.toml
    ```
 
-4. Fund the treasury with enough NIM for postcard catches.
-5. Redeploy the worker: `npm run worker:deploy`
+4. Fund the treasury with enough NIM for catches.
+5. Redeploy: `npm run worker:deploy`
 
-## Units
+Check status:
 
-All amounts are **luna integers**. `1 NIM = 100,000 luna`.
+```bash
+curl -s https://drift-api.driftplanes.workers.dev/config
+```
+
+You want `postcardThrowEnabled` and `postcardCatchEnabled` both `true`.
+
+---
+
+## Amounts
+
+All amounts are stored as **luna** integers.
+
+```
+1 NIM = 100,000 luna
+```
+
+The Nimiq Pay SDK uses luna for send amounts too.
+
+---
 
 ## Docs
 
-- `docs/BRIEF.md` product rules
-- `docs/ARCHITECTURE.md` system design
-- `docs/NIMIQ_API.md` Nimiq SDK signatures
+- `docs/BRIEF.md` — product rules and hackathon context
+- `docs/ARCHITECTURE.md` — system design, API, data model
+- `docs/NIMIQ_API.md` — SDK method signatures we use
+
+---
 
 ## License
 
