@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { Component, useEffect, useRef, type ReactNode } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { PublicPlane } from '../../types/plane'
+
+export const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 
 export interface PlaneOnMap {
   plane: PublicPlane
@@ -12,6 +14,7 @@ interface Props {
   planes: PlaneOnMap[]
   selectedId: string | null
   onSelect: (plane: PublicPlane) => void
+  onTilesFailed?: () => void
 }
 
 function markerHtml(mode: PublicPlane['mode'], selected: boolean): string {
@@ -37,12 +40,15 @@ function markerHtml(mode: PublicPlane['mode'], selected: boolean): string {
   </div>`
 }
 
-export default function SkyMap({ planes, selectedId, onSelect }: Props) {
+export default function SkyMap({ planes, selectedId, onSelect, onTilesFailed }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const markersRef = useRef<Map<string, L.Marker>>(new Map())
+  const pathsRef = useRef<Map<string, L.Polyline>>(new Map())
   const onSelectRef = useRef(onSelect)
+  const onTilesFailedRef = useRef(onTilesFailed)
   onSelectRef.current = onSelect
+  onTilesFailedRef.current = onTilesFailed
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
@@ -52,10 +58,14 @@ export default function SkyMap({ planes, selectedId, onSelect }: Props) {
       attributionControl: true,
     }).setView([20, 0], 2)
 
-    L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    const tiles = L.tileLayer(OSM_TILE_URL, {
       maxZoom: 19,
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
-    }).addTo(map)
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    })
+    tiles.on('tileerror', () => {
+      onTilesFailedRef.current?.()
+    })
+    tiles.addTo(map)
 
     mapRef.current = map
 
@@ -63,6 +73,7 @@ export default function SkyMap({ planes, selectedId, onSelect }: Props) {
       map.remove()
       mapRef.current = null
       markersRef.current.clear()
+      pathsRef.current.clear()
     }
   }, [])
 
@@ -71,12 +82,19 @@ export default function SkyMap({ planes, selectedId, onSelect }: Props) {
     if (!map) return
 
     const markers = markersRef.current
+    const paths = pathsRef.current
     const ids = new Set(planes.map((p) => p.plane.id))
 
     for (const [id, marker] of markers) {
       if (!ids.has(id)) {
         marker.remove()
         markers.delete(id)
+      }
+    }
+    for (const [id, line] of paths) {
+      if (!ids.has(id)) {
+        line.remove()
+        paths.delete(id)
       }
     }
 
@@ -102,6 +120,26 @@ export default function SkyMap({ planes, selectedId, onSelect }: Props) {
           root.classList.toggle('selected', isSelected)
         }
       }
+
+      if (plane.mode === 'private' && plane.toLatLng) {
+        const lineLatLngs: L.LatLngExpression[] = [plane.fromLatLng, plane.toLatLng]
+        let line = paths.get(plane.id)
+        if (!line) {
+          line = L.polyline(lineLatLngs, {
+            color: isSelected ? '#1a2744' : '#5c6b82',
+            weight: isSelected ? 2.5 : 1.5,
+            opacity: 0.7,
+            dashArray: '6 6',
+          }).addTo(map)
+          paths.set(plane.id, line)
+        } else {
+          line.setLatLngs(lineLatLngs)
+          line.setStyle({
+            color: isSelected ? '#1a2744' : '#5c6b82',
+            weight: isSelected ? 2.5 : 1.5,
+          })
+        }
+      }
     }
 
     if (planes.length > 0) {
@@ -111,4 +149,26 @@ export default function SkyMap({ planes, selectedId, onSelect }: Props) {
   }, [planes, selectedId])
 
   return <div ref={containerRef} className="sky-map" />
+}
+
+interface SafeProps {
+  children: ReactNode
+  fallback: ReactNode
+}
+
+interface SafeState {
+  failed: boolean
+}
+
+export class SkyMapSafe extends Component<SafeProps, SafeState> {
+  state: SafeState = { failed: false }
+
+  static getDerivedStateFromError(): SafeState {
+    return { failed: true }
+  }
+
+  render() {
+    if (this.state.failed) return this.props.fallback
+    return this.props.children
+  }
 }

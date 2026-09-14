@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import SkyMap, { type PlaneOnMap } from '../components/Map/SkyMap'
+import SkyMap, { SkyMapSafe, type PlaneOnMap } from '../components/Map/SkyMap'
 import { getPlane } from '../lib/api'
 import { useProfiles } from '../context/ProfileContext'
 import { useSky } from '../hooks/useSky'
@@ -9,6 +9,8 @@ import {
   flightProgress,
   interpolateLatLng,
 } from '../lib/flightClock'
+import { lunaToNim } from '../lib/luna'
+import UserLabel from '../components/UserLabel'
 import PlaneDetail from './PlaneDetail'
 import PostcardCatch from './PostcardCatch'
 import type { Cheer, PublicPlane, Relay } from '../types/plane'
@@ -25,6 +27,7 @@ export default function Sky({ walletAddress }: Props) {
   const [cheers, setCheers] = useState<Cheer[]>([])
   const [relays, setRelays] = useState<Relay[]>([])
   const [detailLoading, setDetailLoading] = useState(false)
+  const [tilesFailed, setTilesFailed] = useState(false)
 
   useEffect(() => {
     const addrs = planes.flatMap((plane) =>
@@ -102,11 +105,25 @@ export default function Sky({ walletAddress }: Props) {
     <section className="sky-screen">
       <div className="sky-map-stage">
         <div className="sky-map-wrap">
-          <SkyMap
-            planes={onMap}
-            selectedId={selected?.id ?? null}
-            onSelect={handleSelect}
-          />
+          <SkyMapSafe
+            fallback={
+              <div className="sky-map-offline">
+                <p className="sky-empty-title">Map unavailable</p>
+                <p className="sky-empty-hint">Planes are listed below</p>
+              </div>
+            }
+          >
+            <SkyMap
+              planes={onMap}
+              selectedId={selected?.id ?? null}
+              onSelect={handleSelect}
+              onTilesFailed={() => setTilesFailed(true)}
+            />
+          </SkyMapSafe>
+
+          {tilesFailed && (
+            <div className="sky-map-offline-banner">Map tiles unavailable</div>
+          )}
 
           {showEmpty && (
             <div className="sky-empty" aria-live="polite">
@@ -160,6 +177,46 @@ export default function Sky({ walletAddress }: Props) {
       {error && <p className="error sky-error">{error}</p>}
       {loading && planes.length === 0 && (
         <p className="status sky-loading">Scanning sky…</p>
+      )}
+
+      {planes.length > 0 && (
+        <ul className="inbox-list sky-plane-list">
+          {planes.map((plane) => (
+            <li key={plane.id}>
+              <button
+                type="button"
+                className={`inbox-item${selected?.id === plane.id ? ' sky-plane-item-selected' : ''}`}
+                onClick={() => handleSelect(plane)}
+              >
+                <span className="inbox-item-icon" aria-hidden="true">
+                  {plane.mode === 'postcard' ? '✉' : '✈'}
+                </span>
+                <span className="inbox-item-body">
+                  <span className="inbox-item-top">
+                    <span className="inbox-from">
+                      <UserLabel address={plane.fromAddress} />
+                      {plane.toAddress ? (
+                        <>
+                          {' → '}
+                          <UserLabel address={plane.toAddress} />
+                        </>
+                      ) : (
+                        ' · postcard'
+                      )}
+                    </span>
+                    <span className="status-pill tone-flight">
+                      {etaLabel(plane.arrivesAt, now)}
+                    </span>
+                  </span>
+                  <span className="inbox-item-meta">
+                    <span className="inbox-amount">{lunaToNim(plane.amountLuna)} NIM</span>
+                  </span>
+                </span>
+                <span className="inbox-chevron" aria-hidden="true">›</span>
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
 
       {selected && selected.mode === 'postcard' && (

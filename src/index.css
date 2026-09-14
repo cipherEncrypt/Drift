@@ -167,6 +167,23 @@ body {
   transform: scale(0.96);
 }
 
+.app-bar-city {
+  max-width: 7.5rem;
+  padding: 0.38rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
 .app-bar-user {
   display: inline-flex;
   align-items: center;
@@ -247,6 +264,33 @@ body {
   color: #c53030;
   font-weight: 600;
   font-size: 0.875rem;
+}
+
+.pending-save {
+  margin-top: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-md);
+  background: rgba(245, 200, 66, 0.14);
+  border: 1px solid rgba(224, 173, 42, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pending-save-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--text);
+}
+
+.pending-save-tx {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  word-break: break-all;
+  color: var(--text-muted);
 }
 
 .hint {
@@ -430,7 +474,8 @@ body {
 }
 
 .field input,
-.field textarea {
+.field textarea,
+.field select {
   font: inherit;
   font-weight: 500;
   padding: 0.75rem 0.85rem;
@@ -441,12 +486,23 @@ body {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+.field select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position: calc(100% - 16px) calc(50% - 3px), calc(100% - 11px) calc(50% - 3px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 1.75rem;
+}
+
 .field input:focus,
-.field textarea:focus {
+.field textarea:focus,
+.field select:focus {
   outline: none;
   border-color: rgba(26, 39, 68, 0.35);
   box-shadow: 0 0 0 3px rgba(26, 39, 68, 0.08);
-  background: #fff;
+  background-color: #fff;
 }
 
 .field textarea {
@@ -633,6 +689,46 @@ body {
   background: rgba(255, 255, 255, 0.75);
   border-radius: 4px 0 0 0;
   color: var(--text-soft);
+}
+
+.sky-map-offline {
+  height: 100%;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  text-align: center;
+  background: #c5d8ea;
+}
+
+.sky-map-offline-banner {
+  position: absolute;
+  z-index: 6;
+  left: 0.65rem;
+  bottom: 0.65rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--navy);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+}
+
+.sky-plane-list {
+  flex-shrink: 0;
+  max-height: 28vh;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 0.15rem 0.25rem;
+}
+
+.sky-plane-item-selected {
+  border-color: rgba(26, 39, 68, 0.28);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Empty overlay */
@@ -1555,7 +1651,8 @@ h1 {
   }
 
   .app-bar-icon-btn,
-  .app-bar-user {
+  .app-bar-user,
+  .app-bar-city {
     background: rgba(26, 36, 56, 0.95);
     border-color: rgba(255, 255, 255, 0.1);
     color: #e8edf5;
@@ -1568,7 +1665,8 @@ h1 {
   .empty-title,
   .sky-empty-title,
   .meta-grid dd,
-  .note-text {
+  .note-text,
+  .city-route {
     color: #f0f4fa;
   }
 
@@ -1586,6 +1684,7 @@ h1 {
 
   .field input,
   .field textarea,
+  .field select,
   .input-sm,
   .plane-item,
   .meta-grid > div,
@@ -1597,7 +1696,8 @@ h1 {
   }
 
   .field input:focus,
-  .field textarea:focus {
+  .field textarea:focus,
+  .field select:focus {
     background: #1a2438;
     box-shadow: 0 0 0 3px rgba(245, 200, 66, 0.15);
   }
@@ -1690,8 +1790,14 @@ h1 {
   max-width: 22rem;
 }
 
-.recipient-preview {
+.recipient-preview,
+.city-route {
   margin-top: -0.25rem;
+}
+
+.city-route {
+  font-weight: 700;
+  color: var(--navy);
 }
 
 .small-error {
