@@ -16,11 +16,17 @@ dist-ssr
 .idea
 .DS_Store
 
-# Env
+# Env / secrets
 .env
+.env.local
 .env.*
 !.env.example
-
-# Wrangler
-.wrangler
 .dev.vars
+**/.dev.vars
+
+# Wrangler / local D1
+.wrangler
+**/.wrangler
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
