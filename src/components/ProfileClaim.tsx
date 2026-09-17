@@ -1,15 +1,17 @@
 import { useState, type FormEvent } from 'react'
 import { claimProfile, debugProfileClaim } from '../lib/api'
 import { signName } from '../lib/nimiq'
+import CitySelect from './CitySelect'
 
 interface Props {
   address: string
-  onClaimed: (username: string) => void
+  onClaimed: (username: string, city: string | null) => void
   onSkip: () => void
 }
 
 export default function ProfileClaim({ address, onClaimed, onSkip }: Props) {
   const [username, setUsername] = useState('')
+  const [city, setCity] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -29,14 +31,15 @@ export default function ProfileClaim({ address, onClaimed, onSkip }: Props) {
       address,
       signature: '',
       publicKey: '',
+      city: city || undefined,
     }
 
     try {
       const sig = await signName(normalized)
       payload.signature = String(sig.signature).trim()
       payload.publicKey = String(sig.publicKey).trim()
-      await claimProfile(payload)
-      onClaimed(normalized)
+      const profile = await claimProfile(payload)
+      onClaimed(profile.username, profile.city)
     } catch (err) {
       const base = err instanceof Error ? err.message : 'claim failed'
       if (base === 'bad signature' && payload.signature && payload.publicKey) {
@@ -79,6 +82,8 @@ export default function ProfileClaim({ address, onClaimed, onSkip }: Props) {
               required
             />
           </label>
+
+          <CitySelect value={city} onChange={setCity} optional />
 
           {error && <p className="error">{error}</p>}
 

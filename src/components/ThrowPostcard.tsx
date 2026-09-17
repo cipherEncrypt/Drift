@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { createPostcard, getConfig } from '../lib/api'
-import { getFromLatLng } from '../lib/geo'
+import { getConfig, savePostcardWithRetry, tryGetProfileByAddress, type CreatePostcardInput } from '../lib/api'
+import { pinFromProfile } from '../lib/cities'
 import { nimToLuna } from '../lib/luna'
 import { sendNim } from '../lib/nimiq'
 
@@ -16,6 +16,10 @@ export default function ThrowPostcard({ fromAddress, onThrown }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
+  const [pendingSave, setPendingSave] = useState<{
+    txHash: string
+    payload: CreatePostcardInput
+  } | null>(null)
 
   useEffect(() => {
     getConfig()
@@ -26,26 +30,52 @@ export default function ThrowPostcard({ fromAddress, onThrown }: Props) {
       .catch(() => setEnabled(false))
   }, [])
 
+  async function retrySave() {
+    if (!pendingSave) return
+    setError(null)
+    setBusy(true)
+
+    try {
+      await savePostcardWithRetry(pendingSave.payload)
+      setPendingSave(null)
+      setAmount('')
+      setOpen(false)
+      onThrown()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'save failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     if (!treasury) return
 
     setError(null)
+    setPendingSave(null)
     setBusy(true)
 
     try {
       const amountLuna = nimToLuna(amount)
-      const fromLatLng = await getFromLatLng()
+      const sender = await tryGetProfileByAddress(fromAddress).catch(() => null)
+      const fromLatLng = pinFromProfile(sender)
       const txHash = await sendNim(treasury, amountLuna)
-      await createPostcard({
+      const payload: CreatePostcardInput = {
         fromAddress,
         amountLuna,
         txHash,
         fromLatLng,
-      })
-      setAmount('')
-      setOpen(false)
-      onThrown()
+      }
+
+      try {
+        await savePostcardWithRetry(payload)
+        setAmount('')
+        setOpen(false)
+        onThrown()
+      } catch {
+        setPendingSave({ txHash, payload })
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'postcard failed')
     } finally {
@@ -87,11 +117,29 @@ export default function ThrowPostcard({ fromAddress, onThrown }: Props) {
 
           {error && <p className="error">{error}</p>}
 
+          {pendingSave && (
+            <div className="pending-save">
+              <p className="pending-save-title">Payment sent — postcard not saved yet</p>
+              <p className="hint small-hint">
+                Your NIM went to the treasury. Save the throw to the sky.
+              </p>
+              <p className="pending-save-tx">{pendingSave.txHash}</p>
+              <button
+                type="button"
+                className="btn-postcard-solid"
+                onClick={retrySave}
+                disabled={busy}
+              >
+                {busy ? 'Saving…' : 'Retry save'}
+              </button>
+            </div>
+          )}
+
           <div className="postcard-actions">
             <button type="button" className="text-btn" onClick={() => setOpen(false)}>
               Cancel
             </button>
-            <button type="submit" className="btn-postcard-solid" disabled={busy}>
+            <button type="submit" className="btn-postcard-solid" disabled={busy || Boolean(pendingSave)}>
               {busy ? 'Throwing…' : 'Throw postcard'}
             </button>
           </div>

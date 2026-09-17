@@ -3,10 +3,18 @@ import { shortAddr } from '../lib/inboxHelpers'
 interface Props {
   address?: string
   username?: string | null
+  cityLabel?: string | null
   onMyQr?: () => void
+  onSetCity?: () => void
 }
 
-export default function AppBar({ address, username, onMyQr }: Props) {
+export default function AppBar({
+  address,
+  username,
+  cityLabel,
+  onMyQr,
+  onSetCity,
+}: Props) {
   const walletLabel = address
     ? username
       ? `@${username}`
@@ -51,6 +59,11 @@ export default function AppBar({ address, username, onMyQr }: Props) {
                     fill="currentColor"
                   />
                 </svg>
+              </button>
+            )}
+            {onSetCity && username && (
+              <button type="button" className="app-bar-city" onClick={onSetCity}>
+                {cityLabel ?? 'Set city'}
               </button>
             )}
             {walletLabel && (

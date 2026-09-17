@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { createPlane, getProfileByUsername, searchProfiles, type PublicProfile } from '../lib/api'
-import { getFromLatLng, toLatLngFromAddress } from '../lib/geo'
+import { getProfileByUsername, savePlaneWithRetry, searchProfiles, tryGetProfileByAddress, type PublicProfile } from '../lib/api'
+import { cityLabel, pinFromProfile } from '../lib/cities'
 import { shortAddr } from '../lib/inboxHelpers'
 import { nimToLuna } from '../lib/luna'
 import { sendNim } from '../lib/nimiq'
@@ -13,6 +13,7 @@ import { useSent } from '../hooks/useSent'
 import SentItem from '../components/SentItem'
 import ThrowPostcard from '../components/ThrowPostcard'
 import SentDetail from './SentDetail'
+import type { CreatePlaneInput } from '../lib/api'
 import type { PublicPlane } from '../types/plane'
 
 interface Props {
@@ -29,9 +30,28 @@ export default function Compose({ fromAddress, initialTo }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [resolvePreview, setResolvePreview] = useState<string | null>(null)
   const [resolvedProfile, setResolvedProfile] = useState<PublicProfile | null>(null)
+  const [senderProfile, setSenderProfile] = useState<PublicProfile | null>(null)
   const [resolveError, setResolveError] = useState<string | null>(null)
   const [suggestions, setSuggestions] = useState<PublicProfile[]>([])
   const [selectedSent, setSelectedSent] = useState<PublicPlane | null>(null)
+  const [pendingSave, setPendingSave] = useState<{
+    txHash: string
+    payload: CreatePlaneInput
+  } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    tryGetProfileByAddress(fromAddress)
+      .then((profile) => {
+        if (!cancelled) setSenderProfile(profile)
+      })
+      .catch(() => {
+        if (!cancelled) setSenderProfile(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [fromAddress])
 
   useEffect(() => {
     if (!initialTo) return
@@ -91,11 +111,11 @@ export default function Compose({ fromAddress, initialTo }: Props) {
       try {
         if (looksLikeNimiqAddress(trimmed)) {
           const addr = trimmed.replace(/\s/g, '')
-          if (!cancelled) {
-            setResolvedProfile(null)
-            setResolvePreview(shortAddr(addr))
-            setResolveError(null)
-          }
+          const profile = await tryGetProfileByAddress(addr).catch(() => null)
+          if (cancelled) return
+          setResolvedProfile(profile)
+          setResolvePreview(shortAddr(addr))
+          setResolveError(null)
           return
         }
 
@@ -140,9 +160,30 @@ export default function Compose({ fromAddress, initialTo }: Props) {
     sentState.refresh()
   }
 
+  async function retrySave() {
+    if (!pendingSave) return
+    setError(null)
+    setBusy(true)
+
+    try {
+      await savePlaneWithRetry(pendingSave.payload)
+      setPendingSave(null)
+      setToField('')
+      setAmount('')
+      setNote('')
+      setResolvePreview(null)
+      afterSend()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'save failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
+    setPendingSave(null)
     setBusy(true)
 
     try {
@@ -153,10 +194,14 @@ export default function Compose({ fromAddress, initialTo }: Props) {
 
       const resolvedTo = await resolveRecipientAddress(toField)
       const amountLuna = nimToLuna(amount)
-      const fromLatLng = await getFromLatLng()
-      const toLatLng = toLatLngFromAddress(resolvedTo)
+      let toProfile = resolvedProfile
+      if (!toProfile) {
+        toProfile = await tryGetProfileByAddress(resolvedTo).catch(() => null)
+      }
+      const fromLatLng = pinFromProfile(senderProfile)
+      const toLatLng = pinFromProfile(toProfile)
       const txHash = await sendNim(resolvedTo, amountLuna)
-      await createPlane({
+      const payload: CreatePlaneInput = {
         fromAddress,
         toAddress: resolvedTo,
         amountLuna,
@@ -164,12 +209,18 @@ export default function Compose({ fromAddress, initialTo }: Props) {
         txHash,
         fromLatLng,
         toLatLng,
-      })
-      setToField('')
-      setAmount('')
-      setNote('')
-      setResolvePreview(null)
-      afterSend()
+      }
+
+      try {
+        await savePlaneWithRetry(payload)
+        setToField('')
+        setAmount('')
+        setNote('')
+        setResolvePreview(null)
+        afterSend()
+      } catch {
+        setPendingSave({ txHash, payload })
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'send failed')
     } finally {
@@ -218,11 +269,17 @@ export default function Compose({ fromAddress, initialTo }: Props) {
           {resolvedProfile && !resolveError && (
             <p className="hint small-hint recipient-preview">
               To @{resolvedProfile.username} · {shortAddr(resolvedProfile.address)}
+              {cityLabel(resolvedProfile.city) ? ` · ${cityLabel(resolvedProfile.city)}` : ''}
             </p>
           )}
           {resolvePreview && !resolveError && !resolvedProfile && (
             <p className="hint small-hint recipient-preview">
               Sends to {resolvePreview}
+            </p>
+          )}
+          {cityLabel(senderProfile?.city) && cityLabel(resolvedProfile?.city) && !resolveError && (
+            <p className="hint small-hint city-route">
+              {cityLabel(senderProfile?.city)} → {cityLabel(resolvedProfile?.city)}
             </p>
           )}
           {resolveError && toField.trim() && (
@@ -255,7 +312,25 @@ export default function Compose({ fromAddress, initialTo }: Props) {
 
           {error && <p className="error">{error}</p>}
 
-          <button type="submit" className="btn-primary" disabled={busy}>
+          {pendingSave && (
+            <div className="pending-save">
+              <p className="pending-save-title">Payment sent — plane not saved yet</p>
+              <p className="hint small-hint">
+                Your NIM went through. Save the plane to your sent list.
+              </p>
+              <p className="pending-save-tx">{pendingSave.txHash}</p>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={retrySave}
+                disabled={busy}
+              >
+                {busy ? 'Saving…' : 'Retry save'}
+              </button>
+            </div>
+          )}
+
+          <button type="submit" className="btn-primary" disabled={busy || Boolean(pendingSave)}>
             {busy ? 'Sending…' : 'Send plane'}
           </button>
         </form>

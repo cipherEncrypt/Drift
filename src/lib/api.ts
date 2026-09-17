@@ -71,6 +71,29 @@ export function createPlane(input: CreatePlaneInput): Promise<{ plane: PublicPla
   })
 }
 
+const SAVE_RETRIES = 3
+const SAVE_RETRY_MS = 800
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+export async function savePlaneWithRetry(input: CreatePlaneInput): Promise<PublicPlane> {
+  let lastErr: Error | null = null
+
+  for (let attempt = 0; attempt < SAVE_RETRIES; attempt++) {
+    try {
+      const { plane } = await createPlane(input)
+      return plane
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error('save failed')
+      if (attempt < SAVE_RETRIES - 1) await sleep(SAVE_RETRY_MS)
+    }
+  }
+
+  throw lastErr ?? new Error('save failed')
+}
+
 export interface CreatePostcardInput {
   fromAddress: string
   amountLuna: string
@@ -89,6 +112,22 @@ export function createPostcard(input: CreatePostcardInput): Promise<{ plane: Pub
       fromLatLng: input.fromLatLng,
     }),
   })
+}
+
+export async function savePostcardWithRetry(input: CreatePostcardInput): Promise<PublicPlane> {
+  let lastErr: Error | null = null
+
+  for (let attempt = 0; attempt < SAVE_RETRIES; attempt++) {
+    try {
+      const { plane } = await createPostcard(input)
+      return plane
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error('save failed')
+      if (attempt < SAVE_RETRIES - 1) await sleep(SAVE_RETRY_MS)
+    }
+  }
+
+  throw lastErr ?? new Error('save failed')
 }
 
 export interface DriftConfig {
@@ -169,6 +208,9 @@ export function claimPlane(
 export interface PublicProfile {
   username: string
   address: string
+  city: string | null
+  cityLat: number | null
+  cityLng: number | null
 }
 
 export function searchProfiles(q: string): Promise<{ profiles: PublicProfile[] }> {
@@ -207,10 +249,23 @@ export interface ProfileWriteInput {
   address: string
   signature: string
   publicKey: string
+  city?: string
 }
 
 export function claimProfile(input: ProfileWriteInput): Promise<PublicProfile> {
   return request('/profiles/claim', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function setProfileCity(input: {
+  address: string
+  city: string
+  signature: string
+  publicKey: string
+}): Promise<PublicProfile> {
+  return request('/profiles/city', {
     method: 'POST',
     body: JSON.stringify(input),
   })

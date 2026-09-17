@@ -6,6 +6,7 @@ import {
   applyLandedTransitions,
   cheersForPlane,
   getPlane,
+  getPlaneByTxHash,
   getPlaneWithNote,
   inboxPlanesEnriched,
   normalizeAddress,
@@ -13,11 +14,12 @@ import {
   relaysForPlane,
   rowToPublic,
   sentPlanes,
-  shortenArrival,
+  shortenArrivalInFlight,
   skyPlanes,
   txHashUsed,
 } from './db'
 import { sendTreasuryPayout, treasuryConfigured } from './postcardTreasury'
+import { txVerifyStatus, verifyTx } from './txVerify'
 import {
   isValidLunaString,
   isValidTxHash,
@@ -154,7 +156,19 @@ export async function handleCreatePlane(
 
   const db = getDb(env)
 
+  const existing = await getPlaneByTxHash(db, txHash)
+  if (existing) return json({ plane: rowToPublic(existing) })
+
   if (await txHashUsed(db, txHash)) return err('txHash already used', 409)
+
+  try {
+    await verifyTx(env, { txHash, toAddress, amountLuna })
+  } catch (verifyErr) {
+    return err(
+      verifyErr instanceof Error ? verifyErr.message : 'tx verification failed',
+      txVerifyStatus(verifyErr),
+    )
+  }
 
   const id = crypto.randomUUID()
   const now = Date.now()
@@ -217,9 +231,22 @@ async function handleCreatePostcard(
   if (!isValidLunaString(amountLuna)) return err('invalid amountLuna', 400)
   if (!isValidTxHash(txHash)) return err('invalid txHash', 400)
 
+  const treasuryAddress = trimNonEmpty(env.POSTCARD_TREASURY_ADDRESS)!
   const db = getDb(env)
 
+  const existing = await getPlaneByTxHash(db, txHash)
+  if (existing) return json({ plane: rowToPublic(existing) })
+
   if (await txHashUsed(db, txHash)) return err('txHash already used', 409)
+
+  try {
+    await verifyTx(env, { txHash, toAddress: treasuryAddress, amountLuna })
+  } catch (verifyErr) {
+    return err(
+      verifyErr instanceof Error ? verifyErr.message : 'tx verification failed',
+      txVerifyStatus(verifyErr),
+    )
+  }
 
   const id = crypto.randomUUID()
   const now = Date.now()
@@ -499,7 +526,22 @@ export async function handleCheer(
     return err('plane not cheerable', 400)
   }
 
+  if (!plane.to_address) return err('plane has no recipient', 400)
+
   if (await txHashUsed(db, txHash)) return err('txHash already used', 409)
+
+  try {
+    await verifyTx(env, {
+      txHash,
+      toAddress: plane.to_address,
+      amountLuna,
+    })
+  } catch (verifyErr) {
+    return err(
+      verifyErr instanceof Error ? verifyErr.message : 'tx verification failed',
+      txVerifyStatus(verifyErr),
+    )
+  }
 
   const id = crypto.randomUUID()
   const createdAt = new Date().toISOString()
@@ -547,13 +589,30 @@ export async function handleRelay(
 
   if (plane.mode !== 'private') return err('relay only on private planes', 400)
   if (plane.status !== 'in_flight') return err('plane not in flight', 400)
+  if (!plane.to_address) return err('plane has no recipient', 400)
 
   const timeSavedMs = relayTimeSavedMs(amountLuna)
   if (timeSavedMs <= 0) return err('relay amount too small', 400)
 
   if (await txHashUsed(db, txHash)) return err('txHash already used', 409)
 
-  const newArrivesAt = shortenArrival(plane.arrives_at, timeSavedMs)
+  try {
+    await verifyTx(env, {
+      txHash,
+      toAddress: plane.to_address,
+      amountLuna,
+    })
+  } catch (verifyErr) {
+    return err(
+      verifyErr instanceof Error ? verifyErr.message : 'tx verification failed',
+      txVerifyStatus(verifyErr),
+    )
+  }
+
+  const etaResult = await shortenArrivalInFlight(db, planeId, timeSavedMs)
+  if (!etaResult.ok) return err('plane not in flight', 400)
+
+  const newArrivesAt = etaResult.arrivesAt
   const id = crypto.randomUUID()
   const createdAt = new Date().toISOString()
 
@@ -563,10 +622,6 @@ export async function handleRelay(
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(id, planeId, fromAddress, amountLuna, txHash, timeSavedMs, createdAt)
-    .run()
-
-  await db.prepare('UPDATE planes SET arrives_at = ? WHERE id = ?')
-    .bind(newArrivesAt, planeId)
     .run()
 
   const relay = {

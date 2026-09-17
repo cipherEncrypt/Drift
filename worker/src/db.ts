@@ -33,6 +33,16 @@ export async function getPlane(db: D1Database, id: string): Promise<PlaneRow | n
     .first<PlaneRow>()
 }
 
+export async function getPlaneByTxHash(
+  db: D1Database,
+  txHash: string,
+): Promise<PlaneRow | null> {
+  return db
+    .prepare(`SELECT ${PLANE_COLS} FROM planes WHERE tx_hash = ?`)
+    .bind(txHash)
+    .first<PlaneRow>()
+}
+
 export async function getPlaneWithNote(db: D1Database, id: string): Promise<PlaneRow | null> {
   return db
     .prepare('SELECT * FROM planes WHERE id = ?')
@@ -258,4 +268,42 @@ export function shortenArrival(arrivesAt: string, timeSavedMs: number): string {
   const target = current - timeSavedMs
   const clamped = Math.max(now + MIN_ARRIVAL_MS, target)
   return new Date(clamped).toISOString()
+}
+
+/** Atomic relay ETA: subtract time in SQL and clamp to now + MIN_ARRIVAL_MS. */
+export async function shortenArrivalInFlight(
+  db: D1Database,
+  planeId: string,
+  timeSavedMs: number,
+): Promise<{ ok: true; arrivesAt: string } | { ok: false }> {
+  const subtractSec = Math.floor(timeSavedMs / 1000)
+  const minArrivalSec = Math.floor(MIN_ARRIVAL_MS / 1000)
+  const nowIso = new Date().toISOString()
+
+  const result = await db
+    .prepare(
+      `UPDATE planes SET arrives_at = CASE
+         WHEN datetime(arrives_at, printf('-%d seconds', ?)) < datetime(?, printf('+%d seconds', ?))
+         THEN datetime(?, printf('+%d seconds', ?))
+         ELSE datetime(arrives_at, printf('-%d seconds', ?))
+       END
+       WHERE id = ? AND status = 'in_flight'`,
+    )
+    .bind(
+      subtractSec,
+      nowIso,
+      minArrivalSec,
+      nowIso,
+      minArrivalSec,
+      subtractSec,
+      planeId,
+    )
+    .run()
+
+  if (!result.meta.changes) return { ok: false }
+
+  const row = await getPlane(db, planeId)
+  if (!row) return { ok: false }
+
+  return { ok: true, arrivesAt: row.arrives_at }
 }

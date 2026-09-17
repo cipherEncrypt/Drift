@@ -5,7 +5,8 @@ import {
   isNimiqPayHost,
   nimiqPayDeeplink,
 } from './lib/deeplink'
-import { tryGetProfileByAddress } from './lib/api'
+import { tryGetProfileByAddress, type PublicProfile } from './lib/api'
+import { cityLabel } from './lib/cities'
 import { parseSendHash, consumeSendHash } from './lib/planeRequestLink'
 import { useNimiq } from './hooks/useNimiq'
 import { useInbox } from './hooks/useInbox'
@@ -13,6 +14,7 @@ import { ProfileProvider, useProfiles } from './context/ProfileContext'
 import AppBar from './components/AppBar'
 import NavDock from './components/NavDock'
 import ProfileClaim from './components/ProfileClaim'
+import CitySet from './components/CitySet'
 import PlaneRequestQr from './components/PlaneRequestQr'
 import Sky from './screens/Sky'
 import Compose from './screens/Compose'
@@ -37,12 +39,14 @@ function AppShell({
   const [screen, setScreen] = useState<Screen>(() => (parseSendHash() ? 'send' : 'sky'))
   const [claimPlaneId, setClaimPlaneId] = useState<string | null>(null)
   const [ownUsername, setOwnUsername] = useState<string | null>(null)
+  const [ownCity, setOwnCity] = useState<string | null>(null)
   const [profileChecked, setProfileChecked] = useState(false)
   const [profileLoadError, setProfileLoadError] = useState<string | null>(null)
   const [profileSkipped, setProfileSkipped] = useState(
     () => sessionStorage.getItem(SKIP_PROFILE_KEY) === '1',
   )
   const [showQr, setShowQr] = useState(false)
+  const [showCity, setShowCity] = useState(false)
   const [sendPrefill, setSendPrefill] = useState<string | null>(() => parseSendHash())
 
   function applySendHashFromUrl() {
@@ -67,9 +71,11 @@ function AppShell({
         if (cancelled) return
         if (profile) {
           setOwnUsername(profile.username)
+          setOwnCity(profile.city)
           setUsername(address, profile.username)
         } else {
           setOwnUsername(null)
+          setOwnCity(null)
         }
         setProfileLoadError(null)
       })
@@ -111,11 +117,19 @@ function AppShell({
     setClaimPlaneId(null)
   }
 
-  function handleProfileClaimed(username: string) {
+  function handleProfileClaimed(username: string, city: string | null) {
     setOwnUsername(username)
+    setOwnCity(city)
     setUsername(address, username)
     setProfileSkipped(false)
     sessionStorage.removeItem(SKIP_PROFILE_KEY)
+  }
+
+  function handleCitySaved(profile: PublicProfile) {
+    setOwnUsername(profile.username)
+    setOwnCity(profile.city)
+    setUsername(address, profile.username)
+    setShowCity(false)
   }
 
   function handleProfileSkip() {
@@ -132,7 +146,9 @@ function AppShell({
       <AppBar
         address={address}
         username={ownUsername}
+        cityLabel={cityLabel(ownCity)}
         onMyQr={() => setShowQr(true)}
+        onSetCity={() => setShowCity(true)}
       />
 
       {profileLoadError && (
@@ -177,6 +193,15 @@ function AppShell({
           address={address}
           onClaimed={handleProfileClaimed}
           onSkip={handleProfileSkip}
+        />
+      )}
+
+      {showCity && ownUsername && (
+        <CitySet
+          address={address}
+          currentCity={ownCity}
+          onSaved={handleCitySaved}
+          onClose={() => setShowCity(false)}
         />
       )}
 

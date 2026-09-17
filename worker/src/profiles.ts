@@ -1,10 +1,12 @@
 import type { Env } from './env'
 import { getDb } from './env'
+import { cityBySlug, type City } from './cities'
 import { normalizeAddress } from './db'
 import {
   addressFromPublicKey,
   addressesMatch,
   debugNimiqVerify,
+  verifyCitySig,
   verifyNameSig,
 } from './nimiqVerify'
 import {
@@ -14,10 +16,16 @@ import {
   trimNonEmpty,
 } from './validate'
 
+const PROFILE_COLS =
+  'address, username, rename_used, city, city_lat, city_lng, updated_at, created_at'
+
 interface ProfileRow {
   address: string
   username: string
   rename_used: number
+  city: string | null
+  city_lat: number | null
+  city_lng: number | null
   updated_at: string
   created_at: string
 }
@@ -25,6 +33,9 @@ interface ProfileRow {
 export interface PublicProfile {
   username: string
   address: string
+  city: string | null
+  cityLat: number | null
+  cityLng: number | null
 }
 
 function json(data: unknown, status = 200): Response {
@@ -36,7 +47,21 @@ function err(message: string, status: number): Response {
 }
 
 function rowToPublic(row: ProfileRow): PublicProfile {
-  return { username: row.username, address: row.address }
+  return {
+    username: row.username,
+    address: row.address,
+    city: row.city ?? null,
+    cityLat: row.city_lat == null ? null : Number(row.city_lat),
+    cityLng: row.city_lng == null ? null : Number(row.city_lng),
+  }
+}
+
+function parseCitySlug(value: string | undefined): City | null | 'invalid' {
+  const slug = trimNonEmpty(value)
+  if (!slug) return null
+  const city = cityBySlug(slug)
+  if (!city) return 'invalid'
+  return city
 }
 
 async function getProfileByAddress(
@@ -45,7 +70,7 @@ async function getProfileByAddress(
 ): Promise<ProfileRow | null> {
   return db
     .prepare(
-      'SELECT address, username, rename_used, updated_at, created_at FROM profiles WHERE address = ?',
+      `SELECT ${PROFILE_COLS} FROM profiles WHERE address = ?`,
     )
     .bind(normalizeAddress(address))
     .first<ProfileRow>()
@@ -57,7 +82,7 @@ async function getProfileByUsername(
 ): Promise<ProfileRow | null> {
   return db
     .prepare(
-      'SELECT address, username, rename_used, updated_at, created_at FROM profiles WHERE username = ?',
+      `SELECT ${PROFILE_COLS} FROM profiles WHERE username = ?`,
     )
     .bind(username)
     .first<ProfileRow>()
@@ -68,6 +93,7 @@ interface ProfileWriteBody {
   address?: string
   signature?: string
   publicKey?: string
+  city?: string
 }
 
 async function verifyProfileSig(
@@ -109,15 +135,12 @@ export async function handleProfileSearch(url: URL, env: Env): Promise<Response>
   if (!q) return json({ profiles: [] })
   const { results } = await getDb(env)
     .prepare(
-      'SELECT address, username FROM profiles WHERE username LIKE ? ORDER BY username LIMIT 8',
+      `SELECT ${PROFILE_COLS} FROM profiles WHERE username LIKE ? ORDER BY username LIMIT 8`,
     )
     .bind(`${q}%`)
     .all()
 
-  const profiles = ((results ?? []) as PublicProfile[]).map((row) => ({
-    username: row.username,
-    address: row.address,
-  }))
+  const profiles = ((results ?? []) as ProfileRow[]).map(rowToPublic)
 
   return json({ profiles })
 }
@@ -149,15 +172,12 @@ export async function handleProfileBatch(url: URL, env: Env): Promise<Response> 
 
   const { results } = await getDb(env)
     .prepare(
-      `SELECT address, username FROM profiles WHERE address IN (${placeholders})`,
+      `SELECT ${PROFILE_COLS} FROM profiles WHERE address IN (${placeholders})`,
     )
     .bind(...norms)
     .all()
 
-  const profiles = ((results ?? []) as PublicProfile[]).map((row) => ({
-    username: row.username,
-    address: row.address,
-  }))
+  const profiles = ((results ?? []) as ProfileRow[]).map(rowToPublic)
 
   return json({ profiles })
 }
@@ -213,6 +233,9 @@ export async function handleProfileClaim(
   }
   if (!isValidUsername(username)) return err('invalid username', 400)
 
+  const city = parseCitySlug(parsed.city)
+  if (city === 'invalid') return err('invalid city', 400)
+
   const sigError = await verifyProfileSig(username, address, publicKey, signature)
   if (sigError) return sigError
 
@@ -228,16 +251,73 @@ export async function handleProfileClaim(
   try {
     await db
       .prepare(
-        `INSERT INTO profiles (address, username, rename_used, updated_at, created_at)
-         VALUES (?, ?, 0, ?, ?)`,
+        `INSERT INTO profiles (
+          address, username, rename_used, city, city_lat, city_lng, updated_at, created_at
+        ) VALUES (?, ?, 0, ?, ?, ?, ?, ?)`,
       )
-      .bind(normalizeAddress(address), username, now, now)
+      .bind(
+        normalizeAddress(address),
+        username,
+        city?.slug ?? null,
+        city?.lat ?? null,
+        city?.lng ?? null,
+        now,
+        now,
+      )
       .run()
   } catch {
     return err('username taken', 409)
   }
 
-  return json({ username, address: normalizeAddress(address) }, 201)
+  const created = await getProfileByAddress(db, address)
+  if (!created) return err('create failed', 500)
+  return json(rowToPublic(created), 201)
+}
+
+export async function handleProfileCity(
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  const parsed = await parseJsonBody<ProfileWriteBody>(request)
+  if (parsed instanceof Response) return parsed
+
+  const address = trimNonEmpty(parsed.address)
+  const signature = trimNonEmpty(parsed.signature)
+  const publicKey = trimNonEmpty(parsed.publicKey)
+  const city = parseCitySlug(parsed.city)
+
+  if (!address || !signature || !publicKey) {
+    return err('address, city, signature, and publicKey required', 400)
+  }
+  if (!city || city === 'invalid') return err('invalid city', 400)
+
+  try {
+    const sigOk = await verifyCitySig(city.slug, publicKey, signature)
+    if (!sigOk) return err('bad signature', 403)
+    const derivedAddr = await addressFromPublicKey(publicKey)
+    if (!addressesMatch(derivedAddr, address)) {
+      return err('signature address mismatch', 403)
+    }
+  } catch {
+    return err('bad signature', 403)
+  }
+
+  const db = getDb(env)
+  const existing = await getProfileByAddress(db, address)
+  if (!existing) return err('no profile for address', 404)
+
+  const now = new Date().toISOString()
+  await db
+    .prepare(
+      `UPDATE profiles SET city = ?, city_lat = ?, city_lng = ?, updated_at = ?
+       WHERE address = ?`,
+    )
+    .bind(city.slug, city.lat, city.lng, now, existing.address)
+    .run()
+
+  const updated = await getProfileByAddress(db, address)
+  if (!updated) return err('city update failed', 500)
+  return json(rowToPublic(updated))
 }
 
 export async function handleProfileRename(

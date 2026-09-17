@@ -55,3 +55,9 @@ export async function signName(username: string): Promise<ClaimSig> {
   if (isErrorResponse(result)) throw new Error(result.error.message)
   return result
 }
+
+export async function signCity(slug: string): Promise<ClaimSig> {
+  const result = await provider().then((p) => p.sign(`drift:city:${slug}`))
+  if (isErrorResponse(result)) throw new Error(result.error.message)
+  return result
+}

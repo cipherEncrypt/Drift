@@ -176,6 +176,14 @@ export async function verifyNameSig(
   return verifyNimiqMessage(`drift:name:${username}`, publicKeyHex, signatureHex)
 }
 
+export async function verifyCitySig(
+  slug: string,
+  publicKeyHex: string,
+  signatureHex: string,
+): Promise<boolean> {
+  return verifyNimiqMessage(`drift:city:${slug}`, publicKeyHex, signatureHex)
+}
+
 export function addressesMatch(a: string, b: string): boolean {
   return normalizeAddress(a) === normalizeAddress(b)
 }

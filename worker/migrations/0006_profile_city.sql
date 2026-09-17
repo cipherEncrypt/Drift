@@ -1,0 +1,3 @@
+ALTER TABLE profiles ADD COLUMN city TEXT;
+ALTER TABLE profiles ADD COLUMN city_lat REAL;
+ALTER TABLE profiles ADD COLUMN city_lng REAL;

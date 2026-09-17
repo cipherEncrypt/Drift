@@ -13,6 +13,7 @@ import {
   handleGetProfile,
   handleProfileBatch,
   handleProfileByAddress,
+  handleProfileCity,
   handleProfileClaim,
   handleProfileDebugVerify,
   handleProfileRename,
@@ -79,6 +80,10 @@ export default {
 
       if (path === '/profiles/claim' && request.method === 'POST') {
         return withCors(await handleProfileClaim(request, env))
+      }
+
+      if (path === '/profiles/city' && request.method === 'POST') {
+        return withCors(await handleProfileCity(request, env))
       }
 
       if (path === '/profiles/rename' && request.method === 'POST') {
